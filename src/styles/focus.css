@@ -1,0 +1,194 @@
+.focus-shell {
+  max-width: 780px;
+  padding: 0 28px 48px;
+}
+.simple-header {
+  padding: 30px 0 26px;
+}
+.simple-header h1 {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 12px;
+}
+.project-selector {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 22px;
+}
+.project-selector label {
+  color: var(--muted);
+  font-size: 17px;
+}
+.project-selector select {
+  flex: 1;
+  min-width: 0;
+  max-width: 340px;
+}
+select {
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid #647d8c;
+  border-radius: 8px;
+  font: inherit;
+  padding: 10px 12px;
+  min-height: 44px;
+}
+.focus-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 28px;
+  font-size: 19px;
+  line-height: 1.6;
+}
+.focus-label {
+  display: block;
+  color: var(--muted);
+  font-size: 17px;
+  margin-bottom: 12px;
+}
+.focus-card h2,
+.task-picker h2 {
+  font-size: clamp(25px, 4vw, 32px);
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 20px;
+  overflow-wrap: anywhere;
+}
+.focus-reason {
+  margin-bottom: 20px;
+}
+.focus-card > p {
+  max-width: 60ch;
+}
+.focus-card .button {
+  font-size: 18px;
+  min-height: 56px;
+  padding: 11px 20px;
+}
+.focus-card .agent-request {
+  margin-bottom: 0;
+}
+.focus-card .help-text,
+.helper {
+  font-size: 16px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.focus-card .help-text {
+  margin: 12px 0 0;
+}
+.handoff-step h3 {
+  font-size: 23px;
+  line-height: 1.35;
+  margin: 0 0 14px;
+}
+.handoff-step p {
+  margin-bottom: 22px;
+}
+.handoff-step .helper {
+  margin-bottom: 0;
+}
+.optional-details {
+  border-top: 1px solid var(--line);
+  margin-top: 26px;
+  padding-top: 5px;
+  font-size: 17px;
+}
+.optional-details > summary {
+  padding: 12px 0;
+  min-height: 44px;
+  color: var(--muted);
+}
+.optional-details .branch-details {
+  padding: 0;
+}
+.optional-details .evidence dd,
+.optional-details .evidence dt {
+  font-size: 16px;
+}
+.browse-link {
+  margin: 12px 0 20px;
+  font-size: 17px;
+}
+.project-details,
+.simple-help {
+  border-top: 1px solid var(--line);
+  font-size: 17px;
+}
+.project-details > summary,
+.simple-help > summary {
+  padding: 16px 0;
+  min-height: 48px;
+  color: var(--muted);
+}
+.simple-help p,
+.simple-help li {
+  line-height: 1.7;
+  max-width: 65ch;
+}
+.simple-help ol {
+  padding-left: 24px;
+}
+.simple-help li {
+  padding: 0 0 12px 4px;
+}
+.project-details {
+  margin-top: 12px;
+}
+.project-details .project-copy {
+  margin: 0 0 20px;
+}
+.check-information {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 16px;
+}
+.check-information p {
+  margin-bottom: 14px;
+}
+[hidden] {
+  display: none !important;
+}
+@media (max-width: 540px) {
+  .focus-shell {
+    padding: 0 20px 30px;
+  }
+  .simple-header {
+    padding: 22px 0;
+  }
+  .focus-card {
+    padding: 22px;
+  }
+  .focus-card .agent-request > .button,
+  .handoff-step > .button {
+    width: 100%;
+  }
+  .focus-card h2 {
+    margin-bottom: 16px;
+  }
+}
+@media (max-width: 360px) {
+  .focus-shell {
+    padding: 0 14px 24px;
+  }
+  .focus-card {
+    padding: 18px;
+  }
+  .project-selector {
+    gap: 10px;
+  }
+}
+@media (forced-colors: active) {
+  .focus-card,
+  select,
+  .picker-list button {
+    border: 1px solid CanvasText;
+  }
+}

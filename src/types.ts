@@ -1,0 +1,11 @@
+import type { components } from "./api.generated";
+export type Repo = components["schemas"]["Repo"];
+export type Repos = components["schemas"]["Repos"];
+export type Status = components["schemas"]["Status"];
+export type Worktree = components["schemas"]["Worktree"];
+export type Preview = components["schemas"]["Preview"];
+export type StatusResponse = components["schemas"]["StatusResponse"];
+export type Worker = components["schemas"]["Worker"];
+export type HistoryEvent = components["schemas"]["Event"];
+export type Category = Worktree["category"];
+export type TaskContext = components["schemas"]["TaskContext"];

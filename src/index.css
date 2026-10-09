@@ -1,0 +1,212 @@
+@import "./styles/layout.css";
+@import "./styles/tasks.css";
+@import "./styles/panels.css";
+@import "./styles/workboard.css";
+@import "./styles/task-picker.css";
+@import "./styles/focus.css";
+@import "./styles/everyday-guide.css";
+@import "./styles/project-report.css";
+
+:root {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #e9eef0;
+  background: #0d151a;
+  --bg: #0d151a;
+  --surface: #131e25;
+  --raised: #1b2932;
+  --line: #31434e;
+  --text: #e9eef0;
+  --muted: #a5b5bf;
+  --amber: #efc479;
+  --green: #a4dfc3;
+  --blue: #a6d1f2;
+  --orange: #ffbb96;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 280px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+button,
+input {
+  font: inherit;
+}
+button,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+a {
+  color: var(--amber);
+}
+:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 4px;
+}
+main:focus {
+  outline: none;
+}
+input[type="search"] {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #647d8c;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  padding: 10px 12px;
+}
+input::placeholder {
+  color: var(--muted);
+}
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--amber);
+}
+code {
+  font-family: var(--mono);
+  font-size: 0.86em;
+  overflow-wrap: anywhere;
+}
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+summary {
+  cursor: pointer;
+}
+button,
+summary,
+label {
+  touch-action: manipulation;
+}
+.skip-link {
+  position: absolute;
+  top: -80px;
+  left: 20px;
+  padding: 12px 18px;
+  background: var(--amber);
+  color: #152027;
+  z-index: 10;
+  border-radius: 8px;
+}
+.skip-link:focus {
+  top: 12px;
+}
+.eyebrow {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+}
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--amber);
+  border-radius: 8px;
+  background: var(--amber);
+  color: #142027;
+  font-size: 14px;
+  font-weight: 650;
+}
+.button:hover:not(:disabled) {
+  background: #f9d798;
+}
+.button.secondary {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--line);
+}
+.button.secondary:hover:not(:disabled) {
+  background: var(--raised);
+}
+.text-button {
+  border: 0;
+  background: transparent;
+  padding: 8px 0;
+  min-height: 44px;
+  color: var(--amber);
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.error-box,
+.notice {
+  border: 1px solid #87603e;
+  border-radius: 10px;
+  padding: 15px 18px;
+  background: #2a211c;
+  color: #ffd5b5;
+  margin-bottom: 18px;
+}
+.error-box p:last-child {
+  margin-bottom: 0;
+}
+.inline-error {
+  color: #ffcbad;
+  margin-top: 16px;
+}
+.empty {
+  padding: 42px 22px;
+  text-align: center;
+  color: var(--muted);
+}
+.empty h3 {
+  font-size: 17px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.empty p {
+  margin-bottom: 0;
+}
+.empty-symbol {
+  display: block;
+  color: var(--amber);
+  font-size: 35px;
+  margin-bottom: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+@media (forced-colors: active) {
+  button,
+  summary,
+  input,
+  .metric,
+  .connection,
+  .task,
+  .tag {
+    border: 1px solid ButtonText;
+  }
+  :focus-visible {
+    outline: 3px solid Highlight;
+  }
+  .event-dot {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}

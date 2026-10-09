@@ -1,0 +1,10 @@
+{
+  "repos": [
+    {
+      "id": "example",
+      "label": "Your project",
+      "path": "code/your-project"
+    }
+  ],
+  "defaultRepo": "example"
+}
