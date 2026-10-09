@@ -1,0 +1,229 @@
+.board-shell {
+  max-width: 940px;
+  padding-bottom: 64px;
+}
+.board-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  margin-bottom: 40px;
+}
+.board-nav .app-name {
+  flex: 1;
+  margin: 0;
+}
+.board-nav a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  font-size: 14px;
+}
+.board-kicker {
+  color: var(--green);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+.board-shell h1 {
+  max-width: 680px;
+}
+.board-shell h2 {
+  font-size: 22px;
+  line-height: 1.3;
+  margin: 0;
+}
+.board-shell h3 {
+  font-size: 17px;
+}
+.board-shell p,
+.board-shell button,
+.board-shell h3 {
+  overflow-wrap: anywhere;
+}
+.board-connection,
+.board-byline,
+.board-status {
+  color: var(--muted);
+  font-size: 14px;
+}
+.board-connection {
+  margin: 12px 0 24px;
+}
+.board-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.board-goal {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--green);
+  border-radius: 10px;
+  padding: 24px;
+}
+.board-goal-text {
+  font-size: 21px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  margin-bottom: 12px;
+}
+.board-goal .board-byline {
+  margin-bottom: 0;
+}
+.board-attention {
+  margin: 30px 0 36px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+.board-attention > p {
+  margin: 14px 0 0;
+  color: var(--muted);
+}
+.board-messages,
+.board-members {
+  padding: 0;
+  list-style: none;
+}
+.board-message {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 22px;
+  margin: 14px 0;
+  background: var(--surface);
+}
+.board-message-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.board-message-meta strong {
+  color: var(--green);
+  font-size: 14px;
+}
+.board-message-meta time {
+  color: var(--muted);
+  font-size: 13px;
+}
+.board-body {
+  white-space: pre-wrap;
+  font-size: 17px;
+}
+.board-reply-context {
+  border-left: 2px solid var(--line);
+  padding-left: 12px;
+  color: var(--muted);
+}
+.board-actions,
+.board-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.board-filters {
+  margin: 22px 0;
+}
+.board-filters [aria-pressed="true"] {
+  border-color: var(--green);
+  color: var(--green);
+  background: #16322a;
+}
+.board-details {
+  border-top: 1px solid var(--line);
+  margin-top: 28px;
+  padding-top: 14px;
+}
+.board-details summary {
+  min-height: 44px;
+  padding: 10px 0;
+  font-weight: 600;
+}
+.board-members li {
+  border-bottom: 1px solid var(--line);
+  padding: 18px 0;
+}
+.board-members p {
+  margin-bottom: 6px;
+}
+.board-empty {
+  padding: 24px 0;
+  color: var(--muted);
+}
+.board-empty h3 {
+  color: var(--text);
+}
+.board-compose {
+  padding: 20px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.board-shell label {
+  display: block;
+  font-weight: 600;
+}
+.board-shell textarea,
+.board-shell select {
+  width: 100%;
+  min-height: 44px;
+  margin: 8px 0 14px;
+  border: 1px solid #647d8c;
+  border-radius: 6px;
+  padding: 10px;
+  color: var(--text);
+  background: var(--bg);
+  font: inherit;
+}
+.board-shell textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+.board-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.board-instruction {
+  border-left: 3px solid var(--green);
+  padding-left: 16px;
+}
+.board-shell .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+@media (max-width: 540px) {
+  .board-form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .board-nav {
+    gap: 8px 16px;
+    margin-bottom: 24px;
+  }
+  .board-nav .app-name {
+    flex-basis: 100%;
+  }
+  .board-goal,
+  .board-message {
+    padding: 18px;
+  }
+}
+.board-message-details summary {
+  min-height: 44px;
+  padding: 10px 0;
+  color: var(--amber);
+}
+.board-message-details .board-body {
+  margin-top: 12px;
+}

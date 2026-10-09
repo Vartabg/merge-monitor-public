@@ -1,0 +1,90 @@
+.simple-header {
+  padding: 24px 0 20px;
+}
+.simple-header .app-name {
+  font-size: 17px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.simple-header h1 {
+  font-family: inherit;
+}
+.app-purpose {
+  font-size: 18px;
+  line-height: 1.55;
+  max-width: 60ch;
+  margin-bottom: 0;
+}
+.project-selector select {
+  font-size: 18px;
+  min-height: 48px;
+}
+.work-reference {
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  margin-bottom: 16px;
+}
+.step-label {
+  font-size: 16px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.focus-card .step-label {
+  margin-bottom: 8px;
+}
+.handoff-active h2 {
+  font-size: 19px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.handoff-step h3 {
+  font-size: 27px;
+}
+.send-instructions {
+  padding-left: 26px;
+  margin: 0 0 20px;
+}
+.send-instructions li {
+  padding-left: 6px;
+  margin-bottom: 12px;
+}
+.paste-help {
+  font-size: 17px;
+  margin-bottom: 8px;
+}
+.paste-help summary {
+  min-height: 48px;
+  padding: 10px 0;
+  color: var(--amber);
+}
+.paste-help p {
+  margin: 10px 0 16px;
+}
+.handoff-step .sent-instruction {
+  margin: 20px 0 10px;
+}
+.handoff-step .text-button {
+  font-size: 17px;
+  margin-top: 12px;
+}
+.focus-card .files textarea {
+  font-size: 17px;
+  line-height: 1.6;
+}
+.focus-card .context-editor input,
+.focus-card .context-editor textarea {
+  font-size: 18px;
+}
+@media (max-width: 540px) {
+  .project-selector {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .project-selector select {
+    width: 100%;
+    max-width: none;
+  }
+}

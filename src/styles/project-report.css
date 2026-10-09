@@ -1,0 +1,96 @@
+.report-kicker {
+  font-size: 16px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.project-report .focus-card > p {
+  margin-bottom: 20px;
+}
+.project-report .report-freshness {
+  margin: 16px 0 0;
+}
+.report-findings {
+  margin-top: 26px;
+}
+.report-findings h3 {
+  font-size: 19px;
+  margin-bottom: 10px;
+}
+.finding-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.finding-list li {
+  border-top: 1px solid var(--line);
+}
+.finding-list button {
+  position: relative;
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  padding: 17px 36px 17px 0;
+  min-height: 66px;
+}
+.finding-list strong,
+.finding-list span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.finding-list strong {
+  font-size: 18px;
+  font-weight: 550;
+}
+.finding-list span {
+  color: var(--muted);
+  font-size: 16px;
+  margin-top: 6px;
+}
+.finding-list .finding-arrow {
+  position: absolute;
+  right: 8px;
+  top: 22px;
+  color: var(--amber);
+}
+.finding-list button:hover strong {
+  color: var(--amber);
+}
+.report-limit {
+  color: var(--muted);
+  font-size: 16px;
+  margin: 12px 0 24px;
+}
+.report-back {
+  font-size: 17px;
+  margin-bottom: 16px;
+}
+.manual-handoff {
+  font-size: 17px;
+}
+.manual-handoff > summary {
+  min-height: 48px;
+  padding: 12px 0;
+  color: var(--muted);
+}
+.agent-access pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.agent-access code {
+  font-size: 16px;
+}
+@media (forced-colors: active) {
+  .finding-list button {
+    border: 1px solid ButtonText;
+  }
+}
+
+.project-report .button[aria-disabled="true"] {
+  cursor: wait;
+  opacity: 0.65;
+}
