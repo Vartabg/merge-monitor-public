@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "sourceCommit": "f02f372107e243f9ffafa1d361f642ab40a96664",
+  "sourceCommit": "ed500056824b5eb65125e3ddbfd127e533ff8a29",
   "publication": "unpublished-candidate",
   "license": "MIT",
   "includesGitHistory": false,
@@ -15,7 +15,7 @@
     },
     {
       "path": "docs/openapi.json",
-      "sha256": "17265f2436499fa1ce81c5004c67803363821eb0b03d1c3d6df972f2a7e4d0fa"
+      "sha256": "a1c9d5dc2baa5c960eccb8f2482f31ba1d6a0ea1b2c5bf26ed3afaa908722b6a"
     },
     {
       "path": "docs/public-release/CONTRIBUTING.md",
@@ -67,11 +67,11 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "0b0c7c906c2d6827c07e809017395e07a016ec9230451a7b98cd2e82527fdfa0"
+      "sha256": "64b025e5cba58a72be46ceb220343e3a04720f5ca4feeba8dfa740d226be2eb5"
     },
     {
       "path": "package.json",
-      "sha256": "36a4dae74ff1ae61356de8161d461069adbca9cb6eead46672affedd96cc18a5"
+      "sha256": "3a7fc5b3dfcb9599466da4a818a9802e27d462bf7f59b8106c86b707f19509f1"
     },
     {
       "path": "README.md",
@@ -331,7 +331,7 @@
     },
     {
       "path": "src/AssignmentDetail.tsx",
-      "sha256": "3da6da472a6f660d1ad67732c60d24b00abe3c9ff340cf0ed5a181b2dee029a8"
+      "sha256": "0fd28bd5a13dfb4ffb60db2751c1082f26d986c1ff86453689afaeee99bbbd83"
     },
     {
       "path": "src/AssignmentForm.tsx",
@@ -343,7 +343,11 @@
     },
     {
       "path": "src/AssignmentProgress.tsx",
-      "sha256": "dd35de5cb21899447c757ecef99c7af0416b1b346244ba1be322ae4a1a8afe7d"
+      "sha256": "a77df43b09f8da79c286cca723787f5abd59f7c494298fed9fa3cb38c3ffc9f0"
+    },
+    {
+      "path": "src/AssignmentRefreshNotice.tsx",
+      "sha256": "156106ef10ea18c03ba8ffe94230aa5159f967409b692ba0a738a4ebd25e4a41"
     },
     {
       "path": "src/assignmentTypes.ts",
@@ -471,11 +475,15 @@
     },
     {
       "path": "src/TeamDesk.tsx",
-      "sha256": "d61950a85ed4701fdb6457b82032b85f2b788984c59d5c86f0b6ae4077d67402"
+      "sha256": "1af6b966a3e0207bcb386e62408f93c6ba2026af0e371c0fd25b6ee2288e93f3"
     },
     {
       "path": "src/types.ts",
       "sha256": "832c254ee15eff8c25b032122cd43d819d16e474d7fdf5b4db703ab1401352b4"
+    },
+    {
+      "path": "src/useAssignmentSelection.ts",
+      "sha256": "36ee0fa63aa34d68f60c1c3cd26373bb2024df82c4cc47bdafb1356099be8aaa"
     },
     {
       "path": "src/useStatus.ts",
@@ -652,6 +660,10 @@
     {
       "path": "tests/team-cli.test.mjs",
       "sha256": "4b6c063d3f330a7006c79a1c6f480b315918a404c5ed1c66c06db5ca37016362"
+    },
+    {
+      "path": "tests/team-desk-refresh.test.tsx",
+      "sha256": "11fc2d9c00d1292c3d90d98e66b4cd6080931a934cf09b0926a15a708bf822da"
     },
     {
       "path": "tests/team-desk.a11y.test.tsx",
