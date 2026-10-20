@@ -15,11 +15,15 @@ export function AssignmentProgress({
   onSave,
   onBusy,
   disabled,
+  stale = false,
+  onEdit,
 }: {
   item: Assignment;
   onSave: (value: Assignment) => void;
   onBusy: (busy: boolean) => void;
   disabled: boolean;
+  stale?: boolean;
+  onEdit?: () => void;
 }) {
   const [status, setStatus] = useState(item.status);
   const [error, setError] = useState("");
@@ -27,6 +31,8 @@ export function AssignmentProgress({
   const corrections = item.status === "review" && status === "queued";
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (stale || saving || disabled) return;
+    onEdit?.();
     const data = new FormData(event.currentTarget);
     const input: AssignmentUpdate = {
       id: item.id,
@@ -56,7 +62,7 @@ export function AssignmentProgress({
     }
   }
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} onChangeCapture={onEdit} onFocusCapture={onEdit}>
       <h3>Update progress</h3>
       <p className="team-note">
         Record what happened. This form does not run a helper or perform the
@@ -130,7 +136,7 @@ export function AssignmentProgress({
           </p>
         </div>
       )}
-      <button className="button" disabled={saving || disabled}>
+      <button className="button" disabled={saving || disabled || stale}>
         {saving ? "Saving…" : "Save progress"}
       </button>
       <p role="status" className="team-note">

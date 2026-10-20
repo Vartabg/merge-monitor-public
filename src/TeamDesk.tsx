@@ -3,6 +3,8 @@ import { getJson } from "./api";
 import { AssignmentForm } from "./AssignmentForm";
 import { AssignmentDetail } from "./AssignmentDetail";
 import { CapacityNotice } from "./CapacityNotice";
+import { AssignmentRefreshNotice } from "./AssignmentRefreshNotice";
+import { useAssignmentSelection } from "./useAssignmentSelection";
 import { progressLabels } from "./assignmentTypes";
 import type { Assignment, Assignments } from "./assignmentTypes";
 import "./styles/assignments.css";
@@ -10,7 +12,7 @@ import "./styles/assignments.css";
 export function TeamDesk() {
   const [items, setItems] = useState<Assignment[] | null>(null);
   const [capacity, setCapacity] = useState<Assignments["capacity"]>();
-  const [selected, setSelected] = useState<Assignment | null>(null);
+  const { selected, select, refresh, onEdit, busy, setBusy } = useAssignmentSelection();
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -28,6 +30,7 @@ export function TeamDesk() {
         });
         if (!controller.signal.aborted) {
           setItems(value.assignments);
+          refresh(value.assignments);
           setCapacity(value.capacity);
           setError(false);
         }
@@ -45,20 +48,24 @@ export function TeamDesk() {
       controller.abort();
       clearInterval(timer);
     };
-  }, [retry]);
+  }, [retry, refresh]);
   function save(item: Assignment) {
     setItems((current) => [
       item,
       ...(current || []).filter((value) => value.id !== item.id),
     ]);
     setCreating(false);
-    setSelected(item);
+    select(item);
     setNotice("Assignment saved.");
     setRetry((value) => value + 1);
   }
+  function loadLatest(item: Assignment) {
+    select(item);
+    requestAnimationFrame(() => document.getElementById("assignment-title")?.focus());
+  }
   function close() {
     const id = selected?.id;
-    setSelected(null);
+    select(null);
     setCreating(false);
     setNotice("");
     requestAnimationFrame(() => {
@@ -66,6 +73,7 @@ export function TeamDesk() {
       else addButton.current?.focus();
     });
   }
+  const latest = items?.find((item) => item.id === selected?.id && item.revision > selected.revision);
   const visible = [...(items || [])].sort((a, b) => {
     const order = { blocked: 0, review: 1, working: 2, queued: 3, accepted: 4 };
     return (
@@ -117,13 +125,19 @@ export function TeamDesk() {
         {creating ? (
           <AssignmentForm onSave={save} onCancel={close} disabled={error} />
         ) : selected ? (
+          <>
+          <AssignmentRefreshNotice latest={latest} busy={busy} onLoad={loadLatest} />
           <AssignmentDetail
-            key={`${selected.id}:${selected.revision}`}
+            key={selected.id}
             assignment={selected}
             disabled={error}
+            stale={!!latest}
+            onEdit={onEdit}
+            onBusy={setBusy}
             onSave={save}
             onClose={close}
           />
+          </>
         ) : (
           <>
             <div className="team-toolbar">
@@ -161,7 +175,7 @@ export function TeamDesk() {
                       id={`assignment-${item.id}`}
                       className="team-work-link"
                       onClick={() => {
-                        setSelected(item);
+                        select(item);
                         setNotice("");
                       }}
                     >

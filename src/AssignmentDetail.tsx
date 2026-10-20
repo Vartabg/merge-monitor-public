@@ -8,11 +8,17 @@ export function AssignmentDetail({
   onSave,
   onClose,
   disabled,
+  stale = false,
+  onEdit,
+  onBusy,
 }: {
   assignment: Assignment;
   onSave: (value: Assignment) => void;
   onClose: () => void;
   disabled: boolean;
+  stale?: boolean;
+  onEdit?: () => void;
+  onBusy?: (busy: boolean) => void;
 }) {
   const [saving, setSaving] = useState(false);
   const title = useRef<HTMLHeadingElement>(null);
@@ -99,9 +105,12 @@ export function AssignmentDetail({
       )}
       {item.status !== "accepted" && (
         <AssignmentProgress
+          key={item.revision}
           item={item}
           onSave={onSave}
-          onBusy={setSaving}
+          onBusy={(value) => { setSaving(value); onBusy?.(value); }}
+          onEdit={onEdit}
+          stale={stale}
           disabled={disabled}
         />
       )}
