@@ -2,6 +2,12 @@ import { readFile, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
 import { homedir } from "node:os";
 
+export function decisionSourceSettings(env = process.env) {
+  return env.MERGE_MONITOR_COMMON_GROUND_STATE_DIR === undefined
+    ? {}
+    : { stateDir: env.MERGE_MONITOR_COMMON_GROUND_STATE_DIR };
+}
+
 export async function loadConfig(root) {
   const config = JSON.parse(
     await readFile(resolve(root, "monitor.config.json"), "utf8"),

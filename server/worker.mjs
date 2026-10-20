@@ -29,6 +29,20 @@ export function createWorker(monitor, { interval = 30_000 } = {}) {
         if (closed || !monitor.store.get().enabled) break;
         try {
           const status = await monitor.refresh(repo.id);
+          const notes = [
+            status.degraded,
+            ...(status.housekeeping || []).map((item) => item.message),
+          ].filter(Boolean);
+          if (notes.length)
+            await monitor.record({
+              repoId: repo.id,
+              branch: "",
+              source: "worker",
+              outcome: "error",
+              message: `${status.degraded ? "Partial check" : "Housekeeping"}: ${notes.join(" ")}`,
+              headSha: "",
+              baseSha: "",
+            });
           for (const wt of status.worktrees
             .filter((w) => w.category === "ready")
             .slice(0, 3)) {

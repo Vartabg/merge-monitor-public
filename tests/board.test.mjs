@@ -10,7 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { createBoardStore } from "../server/board.mjs";
+import { attentionOf, createBoardStore } from "../server/board.mjs";
 let folder, path, store;
 const checkin = (agent, project = "studio") => ({
   project,
@@ -182,4 +182,140 @@ it("keeps unread work pending when an agent checks in again without reading the 
     joined.room.members.find((m) => m.agent === "reviewer").lastReadAt,
   ).toBe("");
   expect(joined.unreadIds).toHaveLength(1);
+});
+it("separates action from FYI and bulk-resolves only the listed FYI items addressed to the caller", async () => {
+  await store.command("check-in", checkin("human"));
+  const post = (fields) =>
+    store.command("post", { ...message("writer", "human"), ...fields });
+  await post({ kind: "update", text: "Shipped the API." });
+  await post({ kind: "handoff", text: "PR merged." });
+  await post({ kind: "question", text: "Weekends?" });
+  await post({ kind: "handoff", text: "Approve deploy?", attention: "action" });
+  await post({ kind: "update", text: "Arrived later." });
+  const room = store.view("studio", "human").room;
+  expect(room.messages.map((m) => m.attention)).toEqual([
+    "fyi",
+    "fyi",
+    "action",
+    "action",
+    "fyi",
+  ]);
+  const [shipped, merged, question, approve, later] = room.messages;
+  const resolve = (messageIds, agent = "human") =>
+    store.command("resolve-fyi", {
+      project: "studio",
+      agent,
+      messageIds,
+      note: "Read. No action needed.",
+    });
+  await expect(resolve([shipped.id, question.id])).rejects.toMatchObject({
+    statusCode: 409,
+  });
+  await expect(resolve([shipped.id], "reviewer")).rejects.toMatchObject({
+    statusCode: 403,
+  });
+  await expect(
+    store.command("resolve-fyi", {
+      project: "studio",
+      agent: "human",
+      messageIds: [shipped.id],
+      note: "   ",
+    }),
+  ).rejects.toThrow("note");
+  await resolve([shipped.id, merged.id]);
+  await resolve([shipped.id, merged.id]);
+  const after = (await createBoardStore(path)).view("studio", "human");
+  const byId = Object.fromEntries(after.room.messages.map((m) => [m.id, m]));
+  expect(byId[shipped.id]).toMatchObject({
+    resolvedBy: "human",
+    resolutionNote: "Read. No action needed.",
+    acknowledgedAt: "",
+  });
+  expect(after.pendingIds).toEqual([question.id, approve.id, later.id]);
+});
+it("derives attention for messages saved before it existed without rewriting them", async () => {
+  await store.command("check-in", checkin("human"));
+  await store.command("post", {
+    ...message("writer", "human"),
+    kind: "update",
+  });
+  const saved = JSON.parse(await readFile(path, "utf8"));
+  for (const m of saved.rooms[0].messages) delete m.attention;
+  for (const [sequence, kind] of [
+    [2, "blocker"],
+    [3, "handoff"],
+  ])
+    saved.rooms[0].messages.push({
+      ...saved.rooms[0].messages[0],
+      id: randomUUID(),
+      requestId: randomUUID(),
+      sequence,
+      kind,
+    });
+  await writeFile(path, JSON.stringify(saved));
+  const legacy = await createBoardStore(path);
+  const old = legacy.view("studio", "human").room.messages;
+  expect(old.map(attentionOf)).toEqual(["fyi", "action", "action"]);
+  expect(old.every((m) => m.attention === undefined)).toBe(true);
+  expect(await readFile(path, "utf8")).not.toContain("attention");
+  const resolve = (ids, includeOldHandoffs) =>
+    legacy.command("resolve-fyi", {
+      project: "studio",
+      agent: "human",
+      messageIds: ids,
+      note: "Checked.",
+      ...(includeOldHandoffs ? { includeOldHandoffs } : {}),
+    });
+  const [update, blocker, handoff] = old.map((m) => m.id);
+  await expect(resolve([update, handoff])).rejects.toMatchObject({
+    statusCode: 409,
+  });
+  await expect(resolve([handoff, blocker], true)).rejects.toMatchObject({
+    statusCode: 409,
+  });
+  await legacy.command("post", {
+    ...message("writer", "human"),
+    attention: "action",
+    text: "Approve the deploy?",
+  });
+  const newAction = legacy.view("studio").room.messages.at(-1).id;
+  await expect(resolve([newAction], true)).rejects.toMatchObject({
+    statusCode: 409,
+  });
+  await resolve([update, handoff], true);
+  expect(legacy.view("studio", "human").pendingIds).toEqual([
+    blocker,
+    newAction,
+  ]);
+});
+it("marks old unfinished check-ins stale at read time with a configurable threshold", async () => {
+  let clock = "2026-10-01T00:00:00.000Z";
+  const timed = (hours) =>
+    createBoardStore(join(folder, `timed-${hours ?? "default"}.json`), {
+      now: () => clock,
+      ...(hours ? { staleAfterHours: hours } : {}),
+    });
+  const board = await timed();
+  await board.command("check-in", checkin("old-worker"));
+  await board.command("check-in", { ...checkin("finished"), state: "done" });
+  await board.command("check-in", checkin("human"));
+  const stored = await readFile(join(folder, "timed-default.json"), "utf8");
+  clock = "2026-10-03T23:00:00.000Z";
+  expect(board.view("studio").staleAgents).toEqual([]);
+  clock = "2026-10-04T01:00:00.000Z";
+  const report = board.view("studio");
+  expect(report.staleAfterHours).toBe(72);
+  expect(report.staleAgents).toEqual(["old-worker"]);
+  expect(report.room.members[0].state).toBe("working");
+  expect(await readFile(join(folder, "timed-default.json"), "utf8")).toBe(
+    stored,
+  );
+  await board.command("check-in", checkin("old-worker"));
+  expect(board.view("studio").staleAgents).toEqual([]);
+  clock = "2026-10-01T00:00:00.000Z";
+  const strict = await timed(1);
+  await strict.command("check-in", checkin("brief-worker"));
+  clock = "2026-10-01T02:00:00.000Z";
+  expect(strict.view("studio").staleAgents).toEqual(["brief-worker"]);
+  await expect(timed(-1)).rejects.toThrow("stale threshold");
 });

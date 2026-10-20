@@ -1,5 +1,4 @@
-import { readFile, writeFile, rename, mkdir, unlink } from "node:fs/promises";
-import { dirname } from "node:path";
+import { privateStateFile } from "./private-state-file.mjs";
 import { randomUUID } from "node:crypto";
 import Ajv from "ajv/dist/2020.js";
 import { boardSchemas } from "./board-contract.mjs";
@@ -32,15 +31,40 @@ const requests = {
   post: "BoardPost",
   ack: "BoardAction",
   resolve: "BoardAction",
+  "resolve-fyi": "BoardResolveFyi",
   goal: "BoardGoal",
 };
+// New posts without attention: questions and blockers need action.
+const postAttention = (kind) =>
+  ["question", "blocker"].includes(kind) ? "action" : "fyi";
+// Messages saved before attention existed also treat handoffs as action,
+// so an old handoff that asks for something is never bulk-resolved as FYI.
+export const attentionOf = (message) =>
+  message.attention ||
+  (["question", "blocker", "handoff"].includes(message.kind)
+    ? "action"
+    : "fyi");
+// Stale is derived at read time; stored check-ins are never rewritten.
+export function staleAgents(room, asOf, hours) {
+  const limit = Date.parse(asOf) - hours * 3600000;
+  return room.members
+    .filter(
+      (m) =>
+        m.agent !== "human" &&
+        m.state !== "done" &&
+        Date.parse(m.checkedInAt) < limit,
+    )
+    .map((m) => m.agent);
+}
 export async function createBoardStore(
   path,
-  { now = () => new Date().toISOString() } = {},
+  { now = () => new Date().toISOString(), staleAfterHours = 72 } = {},
 ) {
+  if (!(staleAfterHours > 0)) fail("The stale threshold must be positive.");
+  const file = await privateStateFile(path);
   let state = { version: 1, rooms: [] };
   try {
-    state = JSON.parse(await readFile(path, "utf8"));
+    state = await file.read();
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
   }
@@ -50,9 +74,11 @@ export async function createBoardStore(
     const room =
       source.rooms.find((r) => r.project === project) || empty(project);
     const member = room.members.find((m) => m.agent === agent);
+    const asOf = now();
+    // Messages saved before attention existed keep it absent, so readers can tell them apart.
     return structuredClone({
       room,
-      asOf: now(),
+      asOf,
       unreadIds: agent
         ? room.messages
             .filter(
@@ -67,6 +93,8 @@ export async function createBoardStore(
             .filter((m) => m.to === agent && !m.resolvedAt)
             .map((m) => m.id)
         : [],
+      staleAfterHours,
+      staleAgents: staleAgents(room, asOf, staleAfterHours),
     });
   }
   async function change(command, value) {
@@ -140,6 +168,7 @@ export async function createBoardStore(
         );
       room.messages.push({
         ...value,
+        attention: value.attention || postAttention(value.kind),
         id: randomUUID(),
         sequence: (room.messages.at(-1)?.sequence || 0) + 1,
         at,
@@ -162,18 +191,34 @@ export async function createBoardStore(
         message.resolvedBy ||= value.agent;
       }
     }
-    validate("BoardState", next);
-    await mkdir(dirname(path), { recursive: true, mode: 0o700 });
-    const temporary = `${path}.${randomUUID()}.tmp`;
-    try {
-      await writeFile(temporary, JSON.stringify(next, null, 2), {
-        mode: 0o600,
-      });
-      await rename(temporary, path);
-    } catch (error) {
-      await unlink(temporary).catch(() => {});
-      throw error;
+    if (command === "resolve-fyi") {
+      // The caller lists the items it showed, so FYI posts that arrive later stay open.
+      if (!value.note.trim()) fail("Add a short resolution note.");
+      const chosen = value.messageIds.map((id) =>
+        room.messages.find((m) => m.id === id),
+      );
+      if (chosen.some((m) => !m))
+        fail("A listed message is not in the selected project.", 404);
+      if (chosen.some((m) => m.to !== value.agent))
+        fail("Only the recipient can bulk-resolve FYI messages.", 403);
+      const allowed = (m) =>
+        m.resolvedAt ||
+        attentionOf(m) === "fyi" ||
+        (value.includeOldHandoffs && !m.attention && m.kind === "handoff");
+      if (!chosen.every(allowed))
+        fail(
+          "Only FYI messages, and old handoffs you confirmed, can be resolved in bulk.",
+          409,
+        );
+      for (const message of chosen.filter((m) => !m.resolvedAt))
+        Object.assign(message, {
+          resolvedAt: at,
+          resolvedBy: value.agent,
+          resolutionNote: value.note,
+        });
     }
+    validate("BoardState", next);
+    await file.save(next);
     state = next;
     const result = view(value.project, value.agent);
     if (command === "read" || command === "check-in")
@@ -204,7 +249,8 @@ export async function boardRequest(path, req, board, monitor, body) {
   const value = await body(
     req,
     Object.keys(boardSchemas[requests[command]].properties),
-    16384,
+    // A bulk FYI resolution can list up to 1,000 message IDs.
+    command === "resolve-fyi" ? 65536 : 16384,
   );
   monitor.repo(value.project);
   return board.command(command, value);

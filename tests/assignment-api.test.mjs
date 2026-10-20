@@ -9,6 +9,14 @@ import { createAssignmentStore } from "../server/assignments.mjs";
 import { contract } from "../server/contract.mjs";
 
 let folder, server, origin, token, store;
+const monitor = {
+  repo: (id) => {
+    if (id !== "Studio") throw new Error("Unknown project");
+  },
+};
+const board = {
+  view: () => ({ room: { members: [{ agent: "Muse" }, { agent: "Gemini" }] } }),
+};
 const input = {
   title: "Repair saved status",
   project: "Studio",
@@ -23,7 +31,7 @@ const input = {
 beforeEach(async () => {
   folder = await mkdtemp(join(tmpdir(), "team-api-"));
   store = await createAssignmentStore(join(folder, "queue.json"));
-  server = createServer(createApi({}, {}, store));
+  server = createServer(createApi(monitor, {}, store, board));
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   origin = `http://127.0.0.1:${server.address().port}`;
   token = (await (await fetch(`${origin}/api/session`)).json()).token;
@@ -110,4 +118,16 @@ it("requires review and evidence before acceptance and never launches work", asy
     (await post("/api/assignments", { ...input, reviewer: input.owner }))
       .status,
   ).toBe(400);
+});
+it("rejects unknown projects and participants before saving connected work", async () => {
+  for (const change of [
+    { project: "Typo" },
+    { owner: "Mues" },
+    { reviewer: "Gemni" },
+  ]) {
+    const result = await post("/api/assignments", { ...input, ...change });
+    expect(result.status).toBe(400);
+    expect((await result.json()).error).toMatch(/project|agent|reviewer/);
+  }
+  expect(store.list()).toEqual([]);
 });

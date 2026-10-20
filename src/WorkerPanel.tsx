@@ -114,6 +114,12 @@ export function WorkerPanel({
                   </strong>
                   <p>{event.message}</p>
                   <time dateTime={event.at}>{time(event.at)}</time>
+                  {(event.count ?? 1) > 1 && (
+                    <span className="event-sha">
+                      {" "}
+                      · repeated {event.count} times since {time(event.firstAt)}
+                    </span>
+                  )}
                   {event.headSha && (
                     <span className="event-sha">
                       {" "}

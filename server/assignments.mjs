@@ -1,5 +1,4 @@
-import { readFile, writeFile, rename, mkdir, chmod, stat } from "node:fs/promises";
-import { dirname } from "node:path";
+import { privateStateFile } from "./private-state-file.mjs";
 import { randomUUID } from "node:crypto";
 import {
   MAX_ASSIGNMENTS,
@@ -28,14 +27,15 @@ function missing(message) {
 // file, so no external locks: writes serialize in one promise chain and
 // revision checks run inside the serialized transaction.
 export async function createAssignmentStore(path) {
+  const file = await privateStateFile(path);
   let state;
   try {
     let parsed;
     try {
-      parsed = JSON.parse(await readFile(path, "utf8"));
+      parsed = await file.read();
     } catch (error) {
       if (error?.code === "ENOENT") throw error;
-      throw new Error(`Invalid assignment state at ${path}: not valid JSON.`, { cause: error });
+      throw new Error(`Invalid assignment state at ${path}: ${error.message}`, { cause: error });
     }
     validateState(parsed);
     state = { version: 1, assignments: structuredClone(parsed.assignments) };
@@ -49,20 +49,7 @@ export async function createAssignmentStore(path) {
 
   async function persist(next) {
     validateState(next);
-    const directory = dirname(path);
-    try {
-      await stat(directory);
-    } catch (error) {
-      if (error?.code !== "ENOENT") throw error;
-      await mkdir(directory, { recursive: true, mode: 0o700 });
-      await chmod(directory, 0o700);
-    }
-    const temporary = `${path}.${process.pid}.tmp`;
-    await writeFile(temporary, JSON.stringify(next, null, 2), {
-      mode: 0o600,
-    });
-    await chmod(temporary, 0o600);
-    await rename(temporary, path);
+    await file.save(next);
   }
 
   let tail = Promise.resolve();

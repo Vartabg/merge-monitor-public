@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from "vitest";
-import { mkdtemp, mkdir, rm, stat, chmod, readFile } from "node:fs/promises";
+import { mkdtemp, rm, stat, chmod, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createAssignmentStore } from "../server/assignments.mjs";
@@ -45,22 +45,22 @@ it("continues saving and reopening after the first history event rolls off", asy
   expect(current.revision).toBe(56);
   expect((await createAssignmentStore(path)).list()[0]).toEqual(current);
 });
-it("preserves an existing parent folder's permissions", async () => {
+it("rejects an existing shared parent without changing its permissions", async () => {
   const { root, store } = await setup();
   await chmod(root, 0o750);
   const item = store.list()[0];
-  await store.update(update(item));
+  await expect(store.update(update(item))).rejects.toThrow(/private/);
   expect((await stat(root)).mode & 0o777).toBe(0o750);
 });
 it("keeps memory and saved data unchanged on an actual persistence failure, then recovers", async () => {
   const { store, path, item } = await setup();
   const bytes = await readFile(path, "utf8");
-  const obstacle = `${path}.${process.pid}.tmp`;
-  await mkdir(obstacle);
+  const parent = join(path, "..");
+  await chmod(parent, 0o750);
   await expect(store.update(update(item))).rejects.toThrow();
   expect(store.list()).toEqual([item]);
   expect(await readFile(path, "utf8")).toBe(bytes);
-  await rm(obstacle, { recursive: true });
+  await chmod(parent, 0o700);
   expect((await store.update(update(item))).revision).toBe(2);
 });
 

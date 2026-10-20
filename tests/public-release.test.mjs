@@ -20,6 +20,11 @@ async function candidate() {
   await put("src/demo.ts", "export const demo = true;\n");
   await put("monitor.config.json", JSON.stringify({ path: "/private/local/project" }));
   await put("docs/plans/private.md", "Private plan marker\n");
+  await put("docs/public-release/RELEASE-PLAN.md", "PRIVATE_RELEASE_PLAN_MARKER\n");
+  await put("docs/public-release/future-internal-note.md", "PRIVATE_FUTURE_NOTE_MARKER\n");
+  await put("docs/TEAM_WORKERS.md", "Public connected-agent instructions\n");
+  await put("docs/TEAM_BOARD.md", "node /Users/vartny/code/merge-monitor/scripts/board-mcp.mjs\n");
+  await put("docs/SAVED_DECISIONS.md", "Public decision search instructions\n");
   await put(".env", "PRIVATE_TEST_MARKER=example\n");
   f.git(["add", "."]);
   f.git(["commit", "-m", "release fixture"]);
@@ -38,9 +43,14 @@ it("exports committed allowlisted files with hashes, excluding private config, p
   expect(manifest.includesGitHistory).toBe(false);
   expect(await readdir(f.output)).not.toContain(".git");
   expect(await readdir(f.output)).not.toContain(".env");
-  expect(await readFile(join(f.output, "monitor.config.json"), "utf8")).not.toContain("/private/local/project");
-  expect(await readFile(join(f.output, "monitor.config.example.json"), "utf8")).toBe(await readFile(join(f.output, "monitor.config.json"), "utf8"));
+  await expect(stat(join(f.output, "monitor.config.json"))).rejects.toThrow();
+  expect(await readFile(join(f.output, "monitor.config.example.json"), "utf8")).not.toContain("/private/local/project");
   await expect(stat(join(f.output, "docs/plans/private.md"))).rejects.toThrow();
+  await expect(stat(join(f.output, "docs/public-release/RELEASE-PLAN.md"))).rejects.toThrow();
+  await expect(stat(join(f.output, "docs/public-release/future-internal-note.md"))).rejects.toThrow();
+  expect(await readFile(join(f.output, "docs/TEAM_WORKERS.md"), "utf8")).toContain("connected-agent");
+  expect(await readFile(join(f.output, "docs/TEAM_BOARD.md"), "utf8")).toContain("/absolute/path/to/merge-monitor/");
+  expect(await readFile(join(f.output, "docs/TEAM_BOARD.md"), "utf8")).not.toContain("/Users/vartny/");
   for (const { path, sha256 } of manifest.files) expect(createHash("sha256").update(await readFile(join(f.output, path))).digest("hex")).toBe(sha256);
   expect(JSON.parse(await readFile(join(f.output, "package.json"), "utf8")).license).toBe("MIT");
 });

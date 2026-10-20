@@ -3,10 +3,10 @@ const text = (maxLength, minLength = 0) => ({
   minLength,
   maxLength,
 });
-const object = (properties) => ({
+const object = (properties, optional = {}) => ({
   type: "object",
   additionalProperties: false,
-  properties,
+  properties: { ...properties, ...optional },
   required: Object.keys(properties),
 });
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
@@ -22,6 +22,8 @@ const kind = {
   enum: ["update", "decision", "question", "blocker", "handoff"],
 };
 const state = { type: "string", enum: ["working", "blocked", "idle", "done"] };
+// "action" needs a decision or work from the recipient; "fyi" reports done work.
+const attention = { type: "string", enum: ["action", "fyi"] };
 const who = { project: id, agent: id };
 const checkin = { ...who, task: text(300, 1), scope: text(800), state };
 const post = {
@@ -36,8 +38,17 @@ const action = { ...who, messageId: uuid };
 export const boardSchemas = {
   BoardRead: object(who),
   BoardCheckIn: object(checkin),
-  BoardPost: object(post),
+  BoardPost: object(post, { attention }),
   BoardAction: object(action),
+  BoardResolveFyi: object(
+    {
+      ...who,
+      messageIds: { ...list(uuid, 1000), minItems: 1 },
+      note: text(300, 1),
+    },
+    // Set only after the owner confirmed old handoffs need no action.
+    { includeOldHandoffs: { type: "boolean" } },
+  ),
   BoardGoal: object({ ...who, goal: text(1200, 1), revision: sequence }),
   BoardMember: object({
     agent: id,
@@ -48,15 +59,18 @@ export const boardSchemas = {
     lastReadAt: text(40),
     lastReadSequence: sequence,
   }),
-  BoardMessage: object({
-    ...post,
-    id: uuid,
-    sequence,
-    at: text(40, 1),
-    acknowledgedAt: text(40),
-    resolvedAt: text(40),
-    resolvedBy: text(80),
-  }),
+  BoardMessage: object(
+    {
+      ...post,
+      id: uuid,
+      sequence,
+      at: text(40, 1),
+      acknowledgedAt: text(40),
+      resolvedAt: text(40),
+      resolvedBy: text(80),
+    },
+    { attention, resolutionNote: text(300) },
+  ),
   BoardRoom: object({
     project: id,
     goal: text(1200),
@@ -75,6 +89,8 @@ export const boardSchemas = {
     asOf: text(40, 1),
     unreadIds: list(uuid, 1000),
     pendingIds: list(uuid, 1000),
+    staleAfterHours: { type: "number", exclusiveMinimum: 0 },
+    staleAgents: list(id, 100),
   }),
 };
 const response = (name) => ({
@@ -117,6 +133,7 @@ export const boardPaths = {
       post: "BoardPost",
       ack: "BoardAction",
       resolve: "BoardAction",
+      "resolve-fyi": "BoardResolveFyi",
       goal: "BoardGoal",
     }).map(([path, schema]) => [
       `/api/board/${path}`,

@@ -6,7 +6,7 @@ import type { Assignment, AssignmentUpdate } from "./assignmentTypes";
 const next: Record<Assignment["status"], Assignment["status"][]> = {
   queued: ["queued", "working", "blocked"],
   working: ["working", "review", "blocked"],
-  review: ["review", "accepted", "working", "blocked"],
+  review: ["review", "accepted", "queued", "blocked"],
   blocked: ["blocked", "queued", "working"],
   accepted: [],
 };
@@ -24,6 +24,7 @@ export function AssignmentProgress({
   const [status, setStatus] = useState(item.status);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const corrections = item.status === "review" && status === "queued";
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -73,7 +74,9 @@ export function AssignmentProgress({
           >
             {next[item.status].map((value) => (
               <option key={value} value={value}>
-                {progressLabels[value]}
+                {item.status === "review" && value === "queued"
+                  ? "Request corrections (queue a new attempt)"
+                  : progressLabels[value]}
               </option>
             ))}
           </select>
@@ -107,12 +110,18 @@ export function AssignmentProgress({
           <textarea
             name="reviewNote"
             defaultValue={item.reviewNote}
-            required={status === "accepted"}
+            required={status === "accepted" || corrections}
             maxLength={1600}
             rows={3}
           />
         </label>
       </fieldset>
+      {corrections && (
+        <p className="team-note" role="status">
+          Describe the corrections in Review findings. Saving returns this work
+          to the assigned agent's queue for a new attempt; the prior run remains saved.
+        </p>
+      )}
       {error && (
         <div className="error-box" role="alert">
           <p>{error}</p>

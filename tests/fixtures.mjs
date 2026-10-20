@@ -1,10 +1,13 @@
-import { mkdtemp, writeFile, mkdir, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, mkdir, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { execFileSync } from "node:child_process";
 
 export async function repository(branch = "main") {
-  const root = await mkdtemp(join(tmpdir(), "merge-monitor-test-"));
+  // Match loadConfig/Git canonical paths, including macOS /var -> /private/var.
+  const root = await realpath(
+    await mkdtemp(join(tmpdir(), "merge-monitor-test-")),
+  );
   const path = join(root, "repo");
   await mkdir(path);
   const git = (args, cwd = path) =>

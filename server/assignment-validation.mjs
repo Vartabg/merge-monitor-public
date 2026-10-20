@@ -6,7 +6,7 @@ export const updateFields = ["id", "revision", "status", "summary",
   "artifacts", "reviewNote"];
 export const STATUSES = ["queued", "working", "review", "accepted", "blocked"];
 export const TRANSITIONS = { queued: ["working", "blocked"],
-  working: ["review", "blocked"], review: ["accepted", "working", "blocked"],
+  working: ["review", "blocked"], review: ["accepted", "queued", "working", "blocked"],
   blocked: ["queued", "working"], accepted: [] };
 export const MAX_ASSIGNMENTS = 500;
 export const MAX_WORKING = 3;

@@ -1,11 +1,11 @@
-import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
+import { privateStateFile } from "./private-state-file.mjs";
 import { validTaskContext } from "./task-context.mjs";
 
 export async function createStateStore(path) {
+  const file = await privateStateFile(path);
   let state = { version: 1, enabled: false, history: [], taskContexts: [] };
   try {
-    const value = JSON.parse(await readFile(path, "utf8"));
+    const value = await file.read();
     if (
       value.version !== 1 ||
       typeof value.enabled !== "boolean" ||
@@ -35,12 +35,7 @@ export async function createStateStore(path) {
     update: (change) => {
       const pending = tail.then(async () => {
         const next = change(structuredClone(state));
-        await mkdir(dirname(path), { recursive: true, mode: 0o700 });
-        const temporary = `${path}.${process.pid}.tmp`;
-        await writeFile(temporary, JSON.stringify(next, null, 2), {
-          mode: 0o600,
-        });
-        await rename(temporary, path);
+        await file.save(next);
         state = next;
         return structuredClone(state);
       });

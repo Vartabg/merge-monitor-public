@@ -2,6 +2,8 @@ import { boardRequest } from "./board.mjs";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { contextFields, saveTaskContext } from "./task-context.mjs";
 import { assignmentRequest } from "./assignment-api.mjs";
+import { createTeamApi } from "./team-api.mjs";
+import { version } from "./release.mjs";
 
 function fail(message, statusCode = 400) {
   throw Object.assign(new Error(message), { statusCode });
@@ -41,8 +43,15 @@ function requireMethod(req, method) {
   if (req.method !== method) fail(`Use ${method} for this endpoint.`, 405);
 }
 
-export function createApi(monitor, worker, assignments, board) {
+export function createApi(monitor, worker, assignments, board, executions,
+  release = { version, commit: null, sourceDirty: null, startedAt: new Date().toISOString() }) {
   const token = randomBytes(32).toString("hex");
+  const teamRequest = createTeamApi({
+    monitor,
+    assignments,
+    board,
+    executions,
+  });
   return async function api(
     req,
     res,
@@ -75,8 +84,10 @@ export function createApi(monitor, worker, assignments, board) {
         )
           fail("Refresh the dashboard session and try again.", 403);
       }
+      if (path.startsWith("/api/team/"))
+        return send(res, 200, await teamRequest(path, req, body));
       if (path === "/api/assignments" || path.startsWith("/api/assignments/")) {
-        const result = await assignmentRequest(path, req, assignments, body);
+        const result = await assignmentRequest(path, req, assignments, body, monitor, board, executions);
         return send(res, result.code, result.data);
       }
       if (path === "/api/board" || path.startsWith("/api/board/")) {
@@ -91,7 +102,7 @@ export function createApi(monitor, worker, assignments, board) {
           requireMethod(req, "GET");
           return send(res, 200, {
             ok: true,
-            version: "0.8.1",
+            ...release,
             at: new Date().toISOString(),
           });
         case "/api/session":

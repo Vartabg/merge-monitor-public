@@ -2,10 +2,447 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Merge Monitor local API",
-    "version": "0.8.1"
+    "version": "0.9.0"
   },
   "components": {
     "schemas": {
+      "TeamIdentity": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "agent": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project",
+          "agent"
+        ]
+      },
+      "TeamClaim": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "agent": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "assignmentId": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+          },
+          "requestId": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+          }
+        },
+        "required": [
+          "project",
+          "agent",
+          "assignmentId",
+          "requestId"
+        ]
+      },
+      "TeamStart": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "agent": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "runId": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+          },
+          "adapter": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project",
+          "agent",
+          "runId",
+          "adapter"
+        ]
+      },
+      "TeamRenew": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "agent": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "runId": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+          }
+        },
+        "required": [
+          "project",
+          "agent",
+          "runId"
+        ]
+      },
+      "TeamFinish": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "agent": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "runId": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+          },
+          "status": {
+            "enum": [
+              "review",
+              "blocked"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 1200,
+            "minLength": 1
+          },
+          "artifacts": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "string",
+              "maxLength": 1024,
+              "minLength": 1
+            }
+          },
+          "requestId": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+          }
+        },
+        "required": [
+          "project",
+          "agent",
+          "runId",
+          "status",
+          "summary",
+          "artifacts",
+          "requestId"
+        ]
+      },
+      "TeamCancel": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "agent": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "runId": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 1200,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project",
+          "agent",
+          "runId",
+          "summary"
+        ]
+      },
+      "TeamAbandon": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "agent": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "runId": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 1200,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project",
+          "agent",
+          "runId",
+          "summary"
+        ]
+      },
+      "TeamRun": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "agent": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "runId": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+          },
+          "assignmentId": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+          },
+          "assignmentRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "finishAssignmentRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "startAssignmentRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "cleanupAssignmentRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "phase": {
+            "enum": [
+              "claimed",
+              "running",
+              "review",
+              "blocked",
+              "expired",
+              "cancelled"
+            ]
+          },
+          "requestId": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+          },
+          "finishRequestId": {
+            "type": "string",
+            "maxLength": 36,
+            "minLength": 0
+          },
+          "adapter": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 0
+          },
+          "createdAt": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1
+          },
+          "updatedAt": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1
+          },
+          "leaseUntil": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 1200,
+            "minLength": 0
+          },
+          "artifacts": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "string",
+              "maxLength": 1024,
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "project",
+          "agent",
+          "runId",
+          "assignmentId",
+          "assignmentRevision",
+          "phase",
+          "requestId",
+          "finishRequestId",
+          "adapter",
+          "createdAt",
+          "updatedAt",
+          "leaseUntil",
+          "summary",
+          "artifacts"
+        ]
+      },
+      "TeamInbox": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "const": 1
+          },
+          "project": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "agent": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "assignments": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/Assignment"
+            }
+          },
+          "reviews": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/Assignment"
+            }
+          },
+          "requests": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "$ref": "#/components/schemas/BoardMessage"
+            }
+          },
+          "runs": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/TeamRun"
+            }
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "assignments": {
+                "type": "integer"
+              },
+              "reviews": {
+                "type": "integer"
+              },
+              "requests": {
+                "type": "integer"
+              },
+              "runs": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "assignments",
+              "reviews",
+              "requests",
+              "runs"
+            ]
+          }
+        },
+        "required": [
+          "version",
+          "project",
+          "agent",
+          "assignments",
+          "reviews",
+          "requests",
+          "runs",
+          "counts"
+        ]
+      },
+      "TeamRuns": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "const": 1
+          },
+          "project": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "runs": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/TeamRun"
+            }
+          }
+        },
+        "required": [
+          "version",
+          "project",
+          "runs"
+        ]
+      },
       "AssignmentCreate": {
         "type": "object",
         "additionalProperties": false,
@@ -282,6 +719,48 @@
             "items": {
               "$ref": "#/components/schemas/Assignment"
             }
+          },
+          "capacity": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "assignments": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "used": {
+                    "type": "integer"
+                  },
+                  "limit": {
+                    "const": 500
+                  }
+                },
+                "required": [
+                  "used",
+                  "limit"
+                ]
+              },
+              "runs": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "used": {
+                    "type": "integer"
+                  },
+                  "limit": {
+                    "const": 500
+                  }
+                },
+                "required": [
+                  "used",
+                  "limit"
+                ]
+              }
+            },
+            "required": [
+              "assignments",
+              "runs"
+            ]
           }
         },
         "required": [
@@ -386,6 +865,13 @@
           "requestId": {
             "type": "string",
             "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"
+          },
+          "attention": {
+            "type": "string",
+            "enum": [
+              "action",
+              "fyi"
+            ]
           }
         },
         "required": [
@@ -419,6 +905,43 @@
           "project",
           "agent",
           "messageId"
+        ]
+      },
+      "BoardResolveFyi": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$"
+          },
+          "agent": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$"
+          },
+          "messageIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"
+            },
+            "maxItems": 1000,
+            "minItems": 1
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "includeOldHandoffs": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "project",
+          "agent",
+          "messageIds",
+          "note"
         ]
       },
       "BoardGoal": {
@@ -570,6 +1093,18 @@
             "type": "string",
             "minLength": 0,
             "maxLength": 80
+          },
+          "attention": {
+            "type": "string",
+            "enum": [
+              "action",
+              "fyi"
+            ]
+          },
+          "resolutionNote": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 300
           }
         },
         "required": [
@@ -688,13 +1223,27 @@
               "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"
             },
             "maxItems": 1000
+          },
+          "staleAfterHours": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "staleAgents": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$"
+            },
+            "maxItems": 100
           }
         },
         "required": [
           "room",
           "asOf",
           "unreadIds",
-          "pendingIds"
+          "pendingIds",
+          "staleAfterHours",
+          "staleAgents"
         ]
       },
       "TaskContext": {
@@ -1009,6 +1558,29 @@
           "branches"
         ]
       },
+      "Housekeeping": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "stale-worktree"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "path",
+          "message"
+        ]
+      },
       "Status": {
         "type": "object",
         "additionalProperties": false,
@@ -1033,6 +1605,15 @@
           },
           "incomplete": {
             "type": "boolean"
+          },
+          "degraded": {
+            "type": "string"
+          },
+          "housekeeping": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Housekeeping"
+            }
           },
           "worktrees": {
             "type": "array",
@@ -1152,6 +1733,12 @@
           },
           "baseSha": {
             "type": "string"
+          },
+          "count": {
+            "type": "number"
+          },
+          "firstAt": {
+            "type": "string"
           }
         },
         "required": [
@@ -1262,12 +1849,38 @@
           },
           "at": {
             "type": "string"
+          },
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceDirty": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "startedAt": {
+            "type": "string"
           }
         },
         "required": [
           "ok",
           "version",
-          "at"
+          "at",
+          "commit",
+          "sourceDirty",
+          "startedAt"
         ]
       },
       "Accepted": {
@@ -1346,6 +1959,818 @@
     }
   },
   "paths": {
+    "/api/team/inbox": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "TeamInbox",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamInbox"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            }
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/team/runs": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "TeamRuns",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamRuns"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/team/claim": {
+      "post": {
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamClaim"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "TeamRun",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/team/start": {
+      "post": {
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "TeamRun",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/team/renew": {
+      "post": {
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamRenew"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "TeamRun",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/team/finish": {
+      "post": {
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamFinish"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "TeamRun",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/team/cancel": {
+      "post": {
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamCancel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "TeamRun",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/team/abandon": {
+      "post": {
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamAbandon"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "TeamRun",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/assignments": {
       "get": {
         "responses": {
@@ -2126,6 +3551,97 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BoardAction"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Board",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Board"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/board/resolve-fyi": {
+      "post": {
+        "security": [
+          {
+            "sessionToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoardResolveFyi"
               }
             }
           }

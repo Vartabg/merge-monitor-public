@@ -59,6 +59,21 @@ export function RepoDashboard({ repo }: { repo: Repo }) {
           {actionError}
         </p>
       )}
+      {status &&
+      !unavailable &&
+      (status.degraded || status.housekeeping?.length) ? (
+        <section className="focus-card" aria-labelledby="partial-title">
+          <h2 id="partial-title">Part of this check was limited.</h2>
+          {status.degraded && <p role="status">{status.degraded}</p>}
+          {status.housekeeping?.length ? (
+            <ul>
+              {status.housekeeping.map((item) => (
+                <li key={item.path}>{item.message}</li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
       {status && (
         <div hidden={unavailable}>
           <FocusWorkspace

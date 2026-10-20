@@ -1,8 +1,5 @@
-import {
-  compactContext,
-  projectInstructionFiles,
-  messageDetail,
-} from "./board-context.mjs";
+import { messageDetail } from "./board-context.mjs";
+import { agentContext, searchSavedDecisions } from "./agent-context.mjs";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -68,6 +65,7 @@ export async function runBoard(args, fetcher = fetch) {
   const commands = [
     "brief",
     "context",
+    "decisions",
     "message",
     "view",
     "check-in",
@@ -79,7 +77,7 @@ export async function runBoard(args, fetcher = fetch) {
   ];
   if (!commands.includes(command))
     throw new Error(
-      "Use: board context|message|brief|view|check-in|post|ack|resolve|goal|wait --project ID [--agent NAME] [--input FILE] [--origin http://127.0.0.1:5173]. Wait accepts --after SEQUENCE --seconds 1..60.",
+      "Use: board context|decisions|message|brief|view|check-in|post|ack|resolve|goal|wait --project ID [--agent NAME] [--input FILE] [--origin http://127.0.0.1:5173]. Decisions requires --query WORDS. Wait accepts --after SEQUENCE --seconds 1..60.",
     );
   const options = {};
   for (let i = 0; i < rest.length; i += 2) {
@@ -91,6 +89,7 @@ export async function runBoard(args, fetcher = fetch) {
         "--origin",
         "--after",
         "--seconds",
+        "--query",
       ].includes(rest[i]) ||
       !rest[i + 1] ||
       options[rest[i]] !== undefined
@@ -99,12 +98,17 @@ export async function runBoard(args, fetcher = fetch) {
     options[rest[i]] = rest[i + 1];
   }
   const client = boardClient(options["--origin"], fetcher);
+  if (command !== "decisions" && options["--query"] !== undefined)
+    throw new Error("--query is only used with decisions.");
   const input = options["--input"]
     ? JSON.parse(await readFile(resolve(options["--input"]), "utf8"))
     : {};
   if (options["--project"]) input.project = options["--project"];
   if (options["--agent"]) input.agent = options["--agent"];
-  if (!input.project || (!["view"].includes(command) && !input.agent))
+  if (
+    !input.project ||
+    (!["view", "decisions"].includes(command) && !input.agent)
+  )
     throw new Error(
       "Supply a project and a unique agent name (view needs only a project).",
     );
@@ -115,13 +119,20 @@ export async function runBoard(args, fetcher = fetch) {
     throw new Error("--after and --seconds are only used with wait.");
   if (command === "context") {
     const report = await client("view", { project: input.project });
-    const files = await projectInstructionFiles(
+    return agentContext(
       options["--origin"] || "http://127.0.0.1:5173",
-      input.project,
-      fetcher,
+      report,
+      input.agent,
+      { fetcher },
     );
-    return compactContext(report, input.agent, files);
   }
+  if (command === "decisions")
+    return searchSavedDecisions(
+      options["--origin"] || "http://127.0.0.1:5173",
+      await client("view", { project: input.project }),
+      options["--query"] || input.query,
+      { fetcher },
+    );
   if (command === "message")
     return messageDetail(
       await client("view", { project: input.project }),
@@ -164,7 +175,15 @@ export async function runBoard(args, fetcher = fetch) {
     } while (Date.now() <= deadline);
     return { available: false, project: input.project, after };
   }
-  return client(command === "brief" ? "read" : command, input);
+  const report = await client(command === "brief" ? "read" : command, input);
+  if (command === "check-in")
+    report.brief = await agentContext(
+      options["--origin"] || "http://127.0.0.1:5173",
+      report,
+      input.agent,
+      { fetcher },
+    );
+  return report;
 }
 if (
   process.argv[1] &&

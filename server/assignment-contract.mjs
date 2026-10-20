@@ -3,11 +3,11 @@ const text = (maxLength, minLength = 0) => ({
   minLength,
   maxLength,
 });
-const object = (properties) => ({
+const object = (properties, optional = []) => ({
   type: "object",
   additionalProperties: false,
   properties,
-  required: Object.keys(properties),
+  required: Object.keys(properties).filter((key) => !optional.includes(key)),
 });
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
 const status = {
@@ -57,9 +57,19 @@ export const assignmentSchemas = {
       items: ref("AssignmentEvent"),
     },
   }),
-  Assignments: object({
-    assignments: { type: "array", maxItems: 500, items: ref("Assignment") },
-  }),
+  Assignments: object(
+    {
+      assignments: { type: "array", maxItems: 500, items: ref("Assignment") },
+      capacity: object({
+        assignments: object({
+          used: { type: "integer" },
+          limit: { const: 500 },
+        }),
+        runs: object({ used: { type: "integer" }, limit: { const: 500 } }),
+      }),
+    },
+    ["capacity"],
+  ),
 };
 const response = (schema) => ({
   description: schema,

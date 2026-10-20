@@ -8,7 +8,13 @@ import { getJson, postJson } from "../src/api";
 import { assignment } from "./team-fixtures";
 vi.mock("../src/api", () => ({ getJson: vi.fn(), postJson: vi.fn() }));
 beforeEach(() => {
-  vi.mocked(getJson).mockResolvedValue({ assignments: [assignment] });
+  vi.mocked(getJson).mockImplementation(async (path) =>
+    path === "/api/repos"
+      ? { repos: [{ id: "Studio", label: "Studio" }], defaultRepo: "Studio" }
+      : path.startsWith("/api/board")
+        ? { room: { members: [{ agent: "Muse" }, { agent: "Gemini" }] } }
+        : { assignments: [assignment] },
+  );
 });
 afterEach(() => {
   cleanup();
@@ -22,16 +28,18 @@ it("records a new assignment and opens its saved details", async () => {
   await user.click(screen.getByRole("button", { name: "Add an assignment" }));
   for (const [label, text] of [
     ["Work name", assignment.title],
-    ["Project", "Studio"],
     ["Why it matters", "Keep work recoverable."],
-    ["Assigned to", "Muse"],
     ["Model or tool", assignment.model],
-    ["Reviewer", "Gemini"],
     ["Allowed work", "Assignment files"],
     ["Acceptance checks", assignment.acceptance],
     ["Time or usage limit", "12 model steps"],
   ])
     await user.type(screen.getByLabelText(label), text);
+  await waitFor(() =>
+    expect(screen.getByLabelText("Assigned to")).toHaveTextContent("Muse"),
+  );
+  await user.selectOptions(screen.getByLabelText("Assigned to"), "Muse");
+  await user.selectOptions(screen.getByLabelText("Reviewer"), "Gemini");
   await user.click(screen.getByRole("button", { name: "Save assignment" }));
   await waitFor(() =>
     expect(postJson).toHaveBeenCalledWith(

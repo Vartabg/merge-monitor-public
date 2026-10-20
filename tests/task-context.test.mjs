@@ -13,6 +13,7 @@ it("migrates old state and preserves task context alongside worker updates acros
     await writeFile(
       path,
       JSON.stringify({ version: 1, enabled: true, history: [] }),
+      { mode: 0o600 },
     );
     const store = await createStateStore(path);
     const monitor = { store, refresh: async () => response().status };
