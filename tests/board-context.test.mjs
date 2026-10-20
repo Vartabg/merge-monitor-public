@@ -88,3 +88,56 @@ it("fingerprints original instruction files without returning their contents and
     await rm(root, { recursive: true, force: true });
   }
 });
+it("flags stale teammates, counts unread and separates actions from FYI for the agent", () => {
+  const member = (agent, lastReadSequence = 0) => ({
+    agent,
+    task: "Work",
+    scope: "",
+    state: "working",
+    checkedInAt: "2026-09-01T00:00:00Z",
+    lastReadAt: "",
+    lastReadSequence,
+  });
+  const base = {
+    id: "",
+    agent: "writer",
+    to: "reviewer",
+    text: "Done.",
+    replyTo: "",
+    acknowledgedAt: "",
+    resolvedAt: "",
+  };
+  const brief = compactContext(
+    {
+      room: {
+        ...report.room,
+        members: [member("reviewer", 1), member("writer"), member("idle")],
+        messages: [
+          { ...base, id: "a", sequence: 1, kind: "question" },
+          { ...base, id: "b", sequence: 2, kind: "handoff", attention: "fyi" },
+          { ...base, id: "c", sequence: 3, kind: "update", to: "" },
+          { ...base, id: "d", sequence: 4, kind: "update", to: "other" },
+        ],
+      },
+      asOf: report.asOf,
+      unreadIds: [],
+      pendingIds: [],
+      staleAfterHours: 72,
+      staleAgents: ["writer"],
+    },
+    "reviewer",
+  );
+  expect(brief.staleAfterHours).toBe(72);
+  expect(brief.teammates.map((m) => [m.agent, m.stale])).toEqual([
+    ["writer", true],
+    ["idle", false],
+  ]);
+  expect(brief.yourTask.stale).toBe(false);
+  expect(brief.counts).toMatchObject({
+    openRequestsForYou: 2,
+    openActionsForYou: 1,
+    unreadForYou: 2,
+    staleTeammates: 1,
+  });
+  expect(brief.messages.find((m) => m.id === "b").attention).toBe("fyi");
+});

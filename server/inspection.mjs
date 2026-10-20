@@ -66,6 +66,14 @@ export async function inspectRepository(
       };
     }
   });
+  const housekeeping = (Array.isArray(raw.housekeeping) ? raw.housekeeping : [])
+    .filter(
+      (item) =>
+        item?.kind === "stale-worktree" &&
+        typeof item.path === "string" &&
+        typeof item.message === "string",
+    )
+    .map(({ kind, path, message }) => ({ kind, path, message }));
   const decisions = classify(worktrees, repo.excludedBranches);
   // An unreadable worktree might own any file. Never declare another task ready in that case.
   const incomplete = decisions.worktrees.some((w) => w.inspectionError);
@@ -85,6 +93,8 @@ export async function inspectRepository(
     generatedAt: new Date().toISOString(),
     durationMs: Math.round(performance.now() - started),
     incomplete,
+    ...(typeof raw.degraded === "string" ? { degraded: raw.degraded } : {}),
+    housekeeping,
     ...decisions,
   };
 }

@@ -22,13 +22,41 @@ export async function command(
   } catch (error) {
     if (allowedCodes.includes(error.code) && !error.killed)
       return { stdout: error.stdout, stderr: error.stderr, code: error.code };
+    if (error.killed)
+      throw new Error(
+        `${file} inspection timed out. Try again after other Git tasks finish.`,
+        { cause: error },
+      );
+    const reason = failureReason(error);
     throw new Error(
-      error.killed
-        ? `${file} inspection timed out. Try again after other Git tasks finish.`
+      reason
+        ? `${file} inspection failed (exit ${error.code}): ${reason}`
         : `${file} inspection failed. Check that the repository and required command are available.`,
       { cause: error },
     );
   }
+}
+
+// Keep the command's own explanation, but only a short, single-line excerpt
+// with anything that looks like a credential masked.
+export function failureReason(error, limit = 300) {
+  const output = [error?.stderr, error?.stdout]
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .find(Boolean);
+  if (!output) return "";
+  const text = output
+    .replace(
+      /\b(gh[pousr]_|github_pat_|sk-|xox[abprs]-)[A-Za-z0-9_-]{8,}/g,
+      "[redacted]",
+    )
+    .replace(/\b(Bearer|Basic)\s+\S+/gi, "$1 [redacted]")
+    .replace(
+      /\b([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API_?KEY|AUTH)[A-Z0-9_]*)=\S+/gi,
+      "$1=[redacted]",
+    )
+    .replace(/:\/\/[^/\s:@]+:[^/\s@]+@/g, "://[redacted]@")
+    .replace(/\s+/g, " ");
+  return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
 }
 export const git = (path, args, options) =>
   command("git", ["--no-optional-locks", "-C", path, ...args], options);

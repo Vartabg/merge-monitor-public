@@ -75,3 +75,56 @@ it("never scans or previews while the worker is paused", async () => {
   expect(worker.view().status).toBe("paused");
   worker.stop();
 });
+it("collapses a failure that repeats every cycle into one counted entry", async () => {
+  const { store, monitor, worker } = await setup();
+  await store.update((s) => ({ ...s, enabled: true }));
+  monitor.inspect.mockRejectedValue(
+    new Error(
+      "agent-task inspection failed (exit 2): BLOCKED: Not a Git repository: /tmp/gone",
+    ),
+  );
+  for (let i = 0; i < 5; i++) await worker.run();
+  const errors = store.get().history.filter((e) => e.outcome === "error");
+  expect(errors).toHaveLength(1);
+  expect(errors[0].count).toBe(5);
+  expect(errors[0].message).toContain("BLOCKED: Not a Git repository");
+  expect(Date.parse(errors[0].firstAt)).toBeLessThanOrEqual(
+    Date.parse(errors[0].at),
+  );
+  expect(worker.view().error).toContain("BLOCKED: Not a Git repository");
+  monitor.inspect.mockRejectedValue(new Error("A different failure"));
+  await worker.run();
+  expect(store.get().history.filter((e) => e.outcome === "error")).toHaveLength(
+    2,
+  );
+  worker.stop();
+});
+it("records a partial check with its reason and housekeeping findings", async () => {
+  const { store, monitor, worker } = await setup();
+  await store.update((s) => ({ ...s, enabled: true }));
+  monitor.inspect.mockResolvedValue({
+    ...response().status,
+    // Git-only data never marks a task ready, so nothing is previewed.
+    worktrees: response().status.worktrees.filter(
+      (w) => w.category !== "ready",
+    ),
+    degraded: "agent-task inspection failed (exit 2): BLOCKED: x.",
+    housekeeping: [
+      {
+        kind: "stale-worktree",
+        path: "/tmp/gone",
+        message:
+          "Stale worktree record at /tmp/gone — run `git worktree prune`.",
+      },
+    ],
+  });
+  await worker.run();
+  await worker.run();
+  const partial = store
+    .get()
+    .history.filter((e) => e.message.startsWith("Partial check:"));
+  expect(partial).toHaveLength(1);
+  expect(partial[0].message).toContain("BLOCKED: x.");
+  expect(partial[0].message).toContain("git worktree prune");
+  worker.stop();
+});

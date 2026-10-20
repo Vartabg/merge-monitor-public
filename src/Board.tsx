@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { getJson, postJson } from "./api";
 import type { components } from "./api.generated";
 import type { Repos } from "./types";
+import { CapacityNotice } from "./CapacityNotice";
 import "./styles/board.css";
 type Report = components["schemas"]["Board"];
 type Message = components["schemas"]["BoardMessage"];
@@ -14,6 +15,12 @@ const labels = {
   handoff: "Ready for the next agent",
 };
 const person = (agent: string) => (agent === "human" ? "You" : agent);
+// Matches the server default for messages saved before attention existed.
+const isFyi = (m: Message) =>
+  (m.attention ||
+    (["question", "blocker", "handoff"].includes(m.kind)
+      ? "action"
+      : "fyi")) === "fyi";
 const date = (at: string) =>
   new Date(at).toLocaleString(undefined, {
     month: "short",
@@ -135,6 +142,8 @@ function ProjectBoard({ project }: { project: string }) {
   const [replyTo, setReplyTo] = useState("");
   const [filter, setFilter] = useState("open");
   const [limit, setLimit] = useState(10);
+  const [fyiNote, setFyiNote] = useState("Read. No action needed.");
+  const [oldConfirmed, setOldConfirmed] = useState(false);
   const epoch = useRef(0);
   const alive = useRef(true);
   const requestId = useRef(crypto.randomUUID());
@@ -257,7 +266,16 @@ function ProjectBoard({ project }: { project: string }) {
   const requests = messages.filter(
     (m) => ["question", "blocker", "handoff"].includes(m.kind) && !m.resolvedAt,
   );
-  const needsYou = requests.filter((m) => m.to === "human");
+  const forYou = messages.filter((m) => m.to === "human" && !m.resolvedAt);
+  const needsYou = forYou.filter((m) => !isFyi(m));
+  const fyi = forYou.filter(isFyi);
+  // Saved before attention existed: shown as action until the owner confirms them.
+  const oldHandoffs = forYou.filter(
+    (m) => !m.attention && m.kind === "handoff",
+  );
+  const bulk = oldConfirmed ? [...fyi, ...oldHandoffs] : fyi;
+  const stale = new Set(data?.staleAgents || []);
+  const helpers = room?.members.filter((m) => m.agent !== "human") || [];
   const visible = [...messages]
     .reverse()
     .filter(
@@ -272,7 +290,10 @@ function ProjectBoard({ project }: { project: string }) {
     return (
       <li key={m.id} className="board-message">
         <div className="board-message-meta">
-          <strong>{labels[m.kind]}</strong>
+          <strong>
+            {labels[m.kind]}
+            {m.to && isFyi(m) ? " · FYI" : ""}
+          </strong>
           <time dateTime={m.at}>{date(m.at)}</time>
         </div>
         <p className="board-byline">
@@ -297,7 +318,7 @@ function ProjectBoard({ project }: { project: string }) {
         )}
         <p className="board-status">
           {m.resolvedAt
-            ? `Resolved by ${person(m.resolvedBy)} · ${date(m.resolvedAt)}`
+            ? `Resolved by ${person(m.resolvedBy)} · ${date(m.resolvedAt)}${m.resolutionNote ? ` · ${m.resolutionNote}` : ""}`
             : m.acknowledgedAt
               ? `Acknowledged ${date(m.acknowledgedAt)} · still open`
               : m.to
@@ -359,6 +380,8 @@ function ProjectBoard({ project }: { project: string }) {
       </p>
       {room && (
         <>
+          <CapacityNotice label="Board messages" used={room.messages.length} limit={1000} />
+          <CapacityNotice label="Project check-ins" used={room.members.length} limit={100} />
           <section className="board-goal" aria-labelledby="goal-heading">
             <div className="board-section-head">
               <h2 id="goal-heading">Our shared goal</h2>
@@ -446,6 +469,73 @@ function ProjectBoard({ project }: { project: string }) {
                 {needsYou.length - 5} more requests appear under Open requests
                 below.
               </p>
+            )}
+            {fyi.length + oldHandoffs.length > 0 && (
+              <details className="board-fyi">
+                <summary>
+                  FYI for you · {fyi.length}
+                  {oldHandoffs.length
+                    ? ` · ${oldHandoffs.length} older handoffs to check`
+                    : ""}
+                </summary>
+                <p className="board-byline">
+                  Reports of finished work. No decision needed.
+                </p>
+                <ul className="board-messages">{fyi.map(messageCard)}</ul>
+                {oldHandoffs.length > 0 && (
+                  <>
+                    <h3>Older handoffs</h3>
+                    <p className="board-byline">
+                      Sent before FYI existed, so they count as needing you.
+                      Check them before resolving.
+                    </p>
+                    <ul className="board-messages">
+                      {oldHandoffs.map(messageCard)}
+                    </ul>
+                  </>
+                )}
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!bulk.length) return;
+                    if (
+                      await act("resolve-fyi", {
+                        messageIds: bulk.map((m) => m.id),
+                        note: fyiNote,
+                        ...(oldConfirmed ? { includeOldHandoffs: true } : {}),
+                      })
+                    )
+                      setOldConfirmed(false);
+                  }}
+                >
+                  <label htmlFor="fyi-note">Resolution note</label>
+                  <input
+                    id="fyi-note"
+                    required
+                    maxLength={300}
+                    value={fyiNote}
+                    onChange={(e) => setFyiNote(e.target.value)}
+                  />
+                  {oldHandoffs.length > 0 && (
+                    <label className="board-check">
+                      <input
+                        type="checkbox"
+                        checked={oldConfirmed}
+                        onChange={(e) => setOldConfirmed(e.target.checked)}
+                      />
+                      I checked the {oldHandoffs.length} older handoffs. None
+                      need action; resolve them too.
+                    </label>
+                  )}
+                  <button
+                    className="button"
+                    disabled={disabled || !bulk.length}
+                  >
+                    Mark {bulk.length} {bulk.length === 1 ? "item" : "items"}{" "}
+                    resolved
+                  </button>
+                </form>
+              </details>
             )}
           </section>
           <section aria-labelledby="conversation-heading">
@@ -591,35 +681,31 @@ function ProjectBoard({ project }: { project: string }) {
           </section>
           <details className="board-details">
             <summary>
-              Agent check-ins ·{" "}
-              {room.members.filter((m) => m.agent !== "human").length} helpers
+              Agent check-ins · {helpers.length} helpers
+              {stale.size ? ` · ${stale.size} stale` : ""}
             </summary>
             <p className="board-byline">
               Check-ins are updates from agents, not proof that they are still
-              running. Names are supplied by local clients.
+              running. Names are supplied by local clients. Stale means no
+              check-in for {data?.staleAfterHours ?? 72} hours.
             </p>
             <ul className="board-members">
-              {room.members
-                .filter((m) => m.agent !== "human")
-                .map((m) => (
-                  <li key={m.agent}>
-                    <h3>{m.agent}</h3>
-                    <p>{m.task}</p>
-                    <p className="board-byline">
-                      {m.state} · checked in {date(m.checkedInAt)}
-                      {Date.parse(data!.asOf) - Date.parse(m.checkedInAt) >
-                        1800000 && m.state !== "done"
-                        ? " · needs a fresh check-in"
-                        : ""}
-                    </p>
-                    {m.scope && <p>Scope: {m.scope}</p>}
-                    <p className="board-byline">
-                      {m.lastReadAt
-                        ? `Last read ${date(m.lastReadAt)} · through message ${m.lastReadSequence}`
-                        : "No recorded board read yet"}
-                    </p>
-                  </li>
-                ))}
+              {helpers.map((m) => (
+                <li key={m.agent}>
+                  <h3>{m.agent}</h3>
+                  <p>{m.task}</p>
+                  <p className="board-byline">
+                    {m.state} · checked in {date(m.checkedInAt)}
+                    {stale.has(m.agent) ? " · stale, may have stopped" : ""}
+                  </p>
+                  {m.scope && <p>Scope: {m.scope}</p>}
+                  <p className="board-byline">
+                    {m.lastReadAt
+                      ? `Last read ${date(m.lastReadAt)} · through message ${m.lastReadSequence}`
+                      : "No recorded board read yet"}
+                  </p>
+                </li>
+              ))}
             </ul>
           </details>
           <details className="board-details">

@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { getJson } from "./api";
 import { AssignmentForm } from "./AssignmentForm";
 import { AssignmentDetail } from "./AssignmentDetail";
+import { CapacityNotice } from "./CapacityNotice";
 import { progressLabels } from "./assignmentTypes";
 import type { Assignment, Assignments } from "./assignmentTypes";
 import "./styles/assignments.css";
 
 export function TeamDesk() {
   const [items, setItems] = useState<Assignment[] | null>(null);
+  const [capacity, setCapacity] = useState<Assignments["capacity"]>();
   const [selected, setSelected] = useState<Assignment | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState(false);
@@ -26,6 +28,7 @@ export function TeamDesk() {
         });
         if (!controller.signal.aborted) {
           setItems(value.assignments);
+          setCapacity(value.capacity);
           setError(false);
         }
       } catch {
@@ -86,6 +89,10 @@ export function TeamDesk() {
         </p>
       </header>
       <main id="main" tabIndex={-1}>
+        {capacity && <>
+          <CapacityNotice label="Assignments" {...capacity.assignments} />
+          <CapacityNotice label="Execution runs" {...capacity.runs} />
+        </>}
         <p className="team-note">
           Progress is recorded by the coordinator. Accepted work includes
           evidence and a named reviewer.

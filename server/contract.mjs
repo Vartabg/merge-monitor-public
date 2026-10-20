@@ -1,5 +1,8 @@
 import { boardSchemas, boardPaths } from "./board-contract.mjs";
 import { assignmentSchemas, assignmentPaths } from "./assignment-contract.mjs";
+import { teamSchemas, teamPaths } from "./team-contract.mjs";
+import { operation } from "./contract-operations.mjs";
+import { version } from "./release.mjs";
 
 const string = { type: "string" },
   number = { type: "number" },
@@ -16,6 +19,7 @@ const object = (properties, optional = []) => ({
 });
 
 const schemas = {
+  ...teamSchemas,
   ...assignmentSchemas,
   ...boardSchemas,
   TaskContext: object({
@@ -82,18 +86,28 @@ const schemas = {
     ["inspectionError"],
   ),
   Conflict: object({ file: string, branches: list(string) }),
-  Status: object({
-    repoId: string,
-    label: string,
-    baseRef: string,
-    baseSha: string,
-    generatedAt: string,
-    durationMs: number,
-    incomplete: boolean,
-    worktrees: list(ref("Worktree")),
-    conflicts: list(ref("Conflict")),
-    fileMapSize: number,
+  Housekeeping: object({
+    kind: choice(["stale-worktree"]),
+    path: string,
+    message: string,
   }),
+  Status: object(
+    {
+      repoId: string,
+      label: string,
+      baseRef: string,
+      baseSha: string,
+      generatedAt: string,
+      durationMs: number,
+      incomplete: boolean,
+      degraded: string,
+      housekeeping: list(ref("Housekeeping")),
+      worktrees: list(ref("Worktree")),
+      conflicts: list(ref("Conflict")),
+      fileMapSize: number,
+    },
+    ["degraded", "housekeeping"],
+  ),
   Worker: object({
     enabled: boolean,
     status: choice(["paused", "idle", "running", "error"]),
@@ -101,17 +115,22 @@ const schemas = {
     lastRun: nullable(string),
     error: nullable(string),
   }),
-  Event: object({
-    id: string,
-    at: string,
-    repoId: string,
-    branch: string,
-    source: choice(["manual", "worker"]),
-    outcome: choice(["clean", "conflict", "stale", "error", "setting"]),
-    message: string,
-    headSha: string,
-    baseSha: string,
-  }),
+  Event: object(
+    {
+      id: string,
+      at: string,
+      repoId: string,
+      branch: string,
+      source: choice(["manual", "worker"]),
+      outcome: choice(["clean", "conflict", "stale", "error", "setting"]),
+      message: string,
+      headSha: string,
+      baseSha: string,
+      count: number,
+      firstAt: string,
+    },
+    ["count", "firstAt"],
+  ),
   StatusResponse: object({
     repoId: string,
     status: nullable(ref("Status")),
@@ -124,7 +143,14 @@ const schemas = {
   }),
   Error: object({ error: string }),
   Session: object({ token: string }),
-  Health: object({ ok: boolean, version: string, at: string }),
+  Health: object({
+    ok: boolean,
+    version: string,
+    at: string,
+    commit: nullable(string),
+    sourceDirty: nullable(boolean),
+    startedAt: string,
+  }),
   Accepted: object({ accepted: boolean }),
   PreviewRequest: object({
     repoId: string,
@@ -136,32 +162,9 @@ const schemas = {
   WorkerRequest: object({ enabled: boolean }),
   Empty: object({}),
 };
-const response = (name) => ({
-  description: name,
-  content: { "application/json": { schema: ref(name) } },
-});
-const operation = (name, input, code = 200) => ({
-  ...(input
-    ? {
-        requestBody: {
-          required: true,
-          content: { "application/json": { schema: ref(input) } },
-        },
-        security: [{ sessionToken: [] }],
-      }
-    : {}),
-  responses: {
-    [code]: response(name),
-    400: response("Error"),
-    403: response("Error"),
-    404: response("Error"),
-    409: response("Error"),
-    500: response("Error"),
-  },
-});
 export const contract = {
   openapi: "3.1.0",
-  info: { title: "Merge Monitor local API", version: "0.8.1" },
+  info: { title: "Merge Monitor local API", version },
   components: {
     schemas,
     securitySchemes: {
@@ -173,6 +176,7 @@ export const contract = {
     },
   },
   paths: {
+    ...teamPaths,
     ...assignmentPaths,
     ...boardPaths,
     "/api/health": { get: operation("Health") },

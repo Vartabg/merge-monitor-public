@@ -211,3 +211,97 @@ it("shows a sent update and restores focus while protecting an in-progress draft
     "true",
   );
 });
+it("keeps FYI reports out of Needs your attention and resolves them in bulk with a note", async () => {
+  const fyi = (n: number, text: string) => ({
+    ...question,
+    id: `cccccccc-cccc-cccc-cccc-cccccccccc0${n}`,
+    sequence: n,
+    kind: "handoff",
+    attention: "fyi",
+    text,
+  });
+  vi.mocked(getJson).mockImplementation(async (url) =>
+    url === "/api/repos"
+      ? { repos: [{ id: "studio", label: "Studio" }], defaultRepo: "studio" }
+      : {
+          ...report,
+          staleAfterHours: 72,
+          staleAgents: ["backend"],
+          room: {
+            ...report.room,
+            messages: [
+              question,
+              fyi(2, "Shipped the booking API."),
+              fyi(3, "PR merged."),
+            ],
+          },
+        },
+  );
+  const user = userEvent.setup();
+  const { container } = render(<Board />);
+  expect(
+    await screen.findByRole("heading", { name: "Needs your attention · 1" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText("Agent check-ins · 1 helpers · 1 stale"),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/stale, may have stopped/)).toBeInTheDocument();
+  await user.click(screen.getByText("FYI for you · 2"));
+  const note = screen.getByLabelText("Resolution note");
+  await user.clear(note);
+  await user.type(note, "Seen, thanks.");
+  await user.click(
+    screen.getByRole("button", { name: "Mark 2 items resolved" }),
+  );
+  await waitFor(() =>
+    expect(postJson).toHaveBeenCalledWith("/api/board/resolve-fyi", {
+      project: "studio",
+      agent: "human",
+      messageIds: [fyi(2, "").id, fyi(3, "").id],
+      note: "Seen, thanks.",
+    }),
+  );
+  const result = await axe.run(container, {
+    rules: { "color-contrast": { enabled: false } },
+  });
+  expect(result.violations).toEqual([]);
+});
+it("includes older handoffs in the bulk action only after the owner confirms them", async () => {
+  const old = {
+    ...question,
+    id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+    sequence: 2,
+    kind: "handoff",
+    text: "Shipped the old release.",
+  };
+  vi.mocked(getJson).mockImplementation(async (url) =>
+    url === "/api/repos"
+      ? { repos: [{ id: "studio", label: "Studio" }], defaultRepo: "studio" }
+      : { ...report, room: { ...report.room, messages: [old] } },
+  );
+  const user = userEvent.setup();
+  const { container } = render(<Board />);
+  expect(
+    await screen.findByRole("heading", { name: "Needs your attention · 1" }),
+  ).toBeInTheDocument();
+  await user.click(screen.getByText(/1 older handoffs to check/));
+  const button = screen.getByRole("button", { name: "Mark 0 items resolved" });
+  expect(button).toBeDisabled();
+  await user.click(screen.getByLabelText(/I checked the 1 older handoffs/));
+  await user.click(
+    screen.getByRole("button", { name: "Mark 1 item resolved" }),
+  );
+  await waitFor(() =>
+    expect(postJson).toHaveBeenCalledWith("/api/board/resolve-fyi", {
+      project: "studio",
+      agent: "human",
+      messageIds: [old.id],
+      note: "Read. No action needed.",
+      includeOldHandoffs: true,
+    }),
+  );
+  const result = await axe.run(container, {
+    rules: { "color-contrast": { enabled: false } },
+  });
+  expect(result.violations).toEqual([]);
+});

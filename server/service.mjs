@@ -7,6 +7,8 @@ import { Monitor } from "./monitor.mjs";
 import { createWorker } from "./worker.mjs";
 import { createApi } from "./api.mjs";
 import { createAssignmentStore } from "./assignments.mjs";
+import { createExecutionStore } from "./executions.mjs";
+import { releaseIdentity } from "./release.mjs";
 
 export async function createService(
   root,
@@ -17,11 +19,17 @@ export async function createService(
   } = {},
 ) {
   const config = await loadConfig(root);
+  const release = await releaseIdentity(root);
   const store = await createStateStore(statePath);
   const assignments = await createAssignmentStore(
     `${statePath}.assignments.json`,
   );
-  const board = await createBoardStore(`${statePath}.board.json`);
+  const board = await createBoardStore(`${statePath}.board.json`, {
+    staleAfterHours: Number(process.env.MERGE_MONITOR_STALE_HOURS || 72),
+  });
+  const executions = await createExecutionStore(
+    resolve(`${statePath}.runtime`, "executions.json"),
+  );
   const monitor = new Monitor(config, store);
   const worker = createWorker(monitor);
   if (startWorker) worker.start();
@@ -30,7 +38,8 @@ export async function createService(
     worker,
     assignments,
     board,
-    api: createApi(monitor, worker, assignments, board),
+    executions,
+    api: createApi(monitor, worker, assignments, board, executions, release),
     close: () => worker.stop(),
   };
 }

@@ -4,6 +4,8 @@ A local workspace for coding agents to share goals, decisions, questions and han
 
 The board records acknowledgment separately from resolution. Agents remain responsible for doing the work, reporting evidence and following the owner's review process.
 
+Version 0.9 adds durable assignment claims, renewable leases and direct result handoffs to a separate reviewer. Reviewers can queue a correction attempt without losing their findings to a retried older result. Project/agent choices are validated against the configured board. See [the connected-agent workflow](docs/TEAM_WORKERS.md) and [saved-decision search](docs/SAVED_DECISIONS.md).
+
 ## Run locally
 
 Requirements: Node.js 22.12 or newer and Git with `merge-tree --write-tree`. The board and portable Git inventory do not require an account or a paid model service.
@@ -24,6 +26,8 @@ cp monitor.config.example.json monitor.config.json
 ```
 
 Edit `monitor.config.json`: replace `code/your-project` with an existing local Git repository path, either absolute or relative to your home directory. Your local config is ignored by Git; the generic example remains tracked. You can add more projects with unique lowercase IDs.
+
+Before upgrading, back up your private `monitor.config.json` and saved state. Published files supply only `monitor.config.example.json`; keep your edited local copy ignored and outside commits. Preserve any existing configuration rather than replacing it with the example.
 
 ```sh
 git add .
@@ -50,6 +54,10 @@ Configure a local MCP-capable client with `node` as the command and the absolute
 
 Tell participating agents to list projects, check in with a unique name and scope, read context before work, address requests to a recipient, acknowledge responsibility, and post the outcome as a linked reply before resolving it. Closed sessions are not awakened automatically. Terminal users can run `node scripts/board-client.mjs --help`.
 
+For scoped assignments, both worker and reviewer first check into the same project. The worker uses `team_inbox`, `team_claim`, `team_start` and `team_renew`, then `team_finish` with evidence. The reviewer independently checks that evidence and records acceptance or chooses **Request corrections (queue a new attempt)** in the progress form. A corrected attempt gets a fresh run and request ID. Keep the exact original finish body for delivery retries. A retry must preserve any later reviewer decision.
+
+The standalone worker launcher remains disabled before claiming work because its capability restrictions are unverified. Existing connected agents can use the protocol; no account, model, paid provider, or closed session is launched automatically. Agent identity, budgets and results are self-reported context rather than authentication or proof of execution.
+
 ## What belongs in a handoff
 
 Include the finding, affected scope and revision, reproduction and expected/actual behavior, impact, recipient, next action, and done check. A response should record the method, revision checked, actual result, and remaining limits. Reading, acknowledging, claiming completion, and verifying a result are different events.
@@ -64,12 +72,16 @@ Git worktree inspection and combination previews are available alongside the boa
 
 Local state is stored under `~/.local/share/merge-monitor/`. Set `MERGE_MONITOR_STATE` to a separate absolute filename for a test instance; run only one service per state file. A snapshot export never includes that state.
 
+State directories must be private to their owner; state files must be private regular files with a single link. Unsafe existing paths fail closed without rewriting data or changing another file's permissions. Back up the complete state directory while the service is stopped before upgrades. Startup health reports the backend commit captured at startup; `/release.json` identifies frontend assets.
+
 ```sh
-npm run verify
+npm run verify:release
 node scripts/demo-handoff.mjs
 ```
 
 Verification runs locally; no GitHub Actions are included. Read CONTRIBUTING.md and SECURITY.md before contributing or reporting a vulnerability.
+
+History is bounded: 500 assignments and execution runs globally, and 100 check-ins and 1,000 messages per room. Near-capacity warnings are visible; completing work does not free history space. Saves fail explicitly at capacity. Export a backup and plan a reviewed capacity change before those limits; there is no automatic deletion or unbounded archive migration.
 
 ## Release provenance
 

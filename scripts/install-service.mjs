@@ -3,6 +3,7 @@ import { promisify } from "node:util";
 import { mkdir, writeFile, readFile, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
 import { homedir } from "node:os";
+import { staleHoursEntry, staleHoursSetting } from "./service-env.mjs";
 
 if (process.platform !== "darwin")
   throw new Error(
@@ -49,6 +50,13 @@ const xml = (value) =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
 const path = resolve(agents, `${label}.plist`);
+const staleHours = staleHoursSetting(
+  process.env.MERGE_MONITOR_STALE_HOURS,
+  await readFile(path, "utf8").catch((error) => {
+    if (error.code === "ENOENT") return "";
+    throw error;
+  }),
+);
 const target = `gui/${process.getuid()}/${label}`;
 const running = await execute("launchctl", ["print", target])
   .then(() => true)
@@ -66,7 +74,7 @@ await writeFile(
 <key>Label</key><string>${label}</string>
 <key>ProgramArguments</key><array><string>${xml(process.execPath)}</string><string>${xml(resolve(root, "server/index.mjs"))}</string></array>
 <key>WorkingDirectory</key><string>${xml(root)}</string>
-<key>EnvironmentVariables</key><dict><key>PATH</key><string>${xml(`${homedir()}/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`)}</string><key>PORT</key><string>${port}</string></dict>
+<key>EnvironmentVariables</key><dict><key>PATH</key><string>${xml(`${homedir()}/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`)}</string><key>PORT</key><string>${port}</string>${staleHoursEntry(staleHours)}</dict>
 <key>RunAtLoad</key><true/><key>KeepAlive</key><true/><key>ThrottleInterval</key><integer>10</integer>
 <key>StandardOutPath</key><string>${xml(resolve(logs, "out.log"))}</string>
 <key>StandardErrorPath</key><string>${xml(resolve(logs, "error.log"))}</string>
@@ -76,5 +84,5 @@ await writeFile(
 await execute("plutil", ["-lint", path]);
 await execute("launchctl", ["bootstrap", `gui/${process.getuid()}`, path]);
 console.log(
-  `[Deploy] ${release.commit.slice(0, 8)} → http://127.0.0.1:${port} (${label})`,
+  `[Deploy] ${release.commit.slice(0, 8)} → http://127.0.0.1:${port} (${label}) · stale after ${staleHours || 72}h`,
 );

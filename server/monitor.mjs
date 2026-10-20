@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 import { inspectRepository } from "./inspection.mjs";
 import { previewMerge } from "./git.mjs";
 
+const sameEvent = (a, b) =>
+  ["branch", "source", "outcome", "message", "headSha", "baseSha"].every(
+    (key) => a[key] === b[key],
+  );
+
 export class Monitor {
   constructor(
     config,
@@ -75,13 +80,31 @@ export class Monitor {
     return pending;
   }
   async record(event) {
-    await this.store.update((state) => ({
-      ...state,
-      history: [
-        { id: randomUUID(), at: new Date().toISOString(), ...event },
-        ...state.history,
-      ].slice(0, 100),
-    }));
+    await this.store.update((state) => {
+      const at = new Date().toISOString();
+      // A failure that repeats every cycle is one entry with a count, so it
+      // cannot push every other result out of the 100-entry history.
+      const previous = state.history.find((e) => e.repoId === event.repoId);
+      if (event.outcome === "error" && previous && sameEvent(previous, event)) {
+        const merged = {
+          ...previous,
+          at,
+          firstAt: previous.firstAt || previous.at,
+          count: (previous.count || 1) + 1,
+        };
+        return {
+          ...state,
+          history: [merged, ...state.history.filter((e) => e !== previous)],
+        };
+      }
+      return {
+        ...state,
+        history: [{ id: randomUUID(), at, ...event }, ...state.history].slice(
+          0,
+          100,
+        ),
+      };
+    });
   }
   async runPreview(id, branch, expected, source = "manual") {
     const repo = this.repo(id);

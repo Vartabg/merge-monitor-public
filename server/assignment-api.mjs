@@ -1,9 +1,22 @@
-import { createFields, updateFields } from "./assignment-validation.mjs";
+import {
+  createFields,
+  updateFields,
+  validateCreateInput,
+} from "./assignment-validation.mjs";
+import { validateParticipants } from "./assignment-participants.mjs";
 
 const fail = (message, statusCode) => {
   throw Object.assign(new Error(message), { statusCode });
 };
-export async function assignmentRequest(path, req, store, readBody) {
+export async function assignmentRequest(
+  path,
+  req,
+  store,
+  readBody,
+  monitor,
+  board,
+  executions,
+) {
   if (!["/api/assignments", "/api/assignments/update"].includes(path))
     fail("This assignment endpoint does not exist.", 404);
   if (path === "/api/assignments/update" && req.method !== "POST")
@@ -17,13 +30,28 @@ export async function assignmentRequest(path, req, store, readBody) {
     );
   try {
     if (req.method === "GET")
-      return { code: 200, data: { assignments: store.list() } };
+      return {
+        code: 200,
+        data: {
+          assignments: store.list(),
+          ...(executions
+            ? {
+                capacity: {
+                  assignments: { used: store.list().length, limit: 500 },
+                  runs: executions.capacity(),
+                },
+              }
+            : {}),
+        },
+      };
     const update = path.endsWith("/update");
     const value = await readBody(
       req,
       update ? updateFields : createFields,
       16384,
     );
+    if (!update)
+      validateParticipants(validateCreateInput(value), monitor, board);
     return {
       code: update ? 200 : 201,
       data: await store[update ? "update" : "create"](value),

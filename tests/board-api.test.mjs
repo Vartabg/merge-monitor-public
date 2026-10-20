@@ -203,3 +203,73 @@ it("exposes working MCP tools to separate agent connections over stdio", async (
     await Promise.all(clients.map((c) => c.close()));
   }
 });
+it("returns the agent's brief on MCP check-in without recording a full read", async () => {
+  const writer = boardClient(origin);
+  await writer("check-in", checkin("writer"));
+  await writer("check-in", checkin("reviewer"));
+  await writer("post", {
+    project: "studio",
+    agent: "writer",
+    to: "reviewer",
+    kind: "question",
+    text: "Which port should the preview use?",
+  });
+  const client = new Client({ name: "reviewer", version: "1.0" });
+  await client.connect(
+    new StdioClientTransport({
+      command: process.execPath,
+      args: [resolve("scripts/board-mcp.mjs")],
+      env: { ...process.env, MERGE_MONITOR_ORIGIN: origin },
+    }),
+  );
+  try {
+    const result = await client.callTool({
+      name: "team_check_in",
+      arguments: checkin("reviewer"),
+    });
+    expect(result.isError).not.toBe(true);
+    const receipt = JSON.parse(result.content[0].text);
+    expect(receipt.pendingRequestCount).toBe(1);
+    expect(receipt.brief.counts).toMatchObject({
+      openRequestsForYou: 1,
+      openActionsForYou: 1,
+      unreadForYou: 1,
+    });
+    expect(receipt.brief.messages[0].text).toBe(
+      "Which port should the preview use?",
+    );
+    const reviewer = board
+      .view("studio")
+      .room.members.find((m) => m.agent === "reviewer");
+    expect(reviewer).toMatchObject({ lastReadAt: "", lastReadSequence: 0 });
+  } finally {
+    await client.close();
+  }
+});
+it("bulk-resolves FYI items through the API with a note", async () => {
+  await post("/api/board/check-in", checkin("writer"));
+  await post("/api/board/check-in", { ...checkin("human"), state: "idle" });
+  const saved = await (
+    await post("/api/board/post", {
+      project: "studio",
+      agent: "writer",
+      to: "human",
+      kind: "handoff",
+      attention: "fyi",
+      text: "PR merged.",
+      replyTo: "",
+      requestId: crypto.randomUUID(),
+    })
+  ).json();
+  const response = await post("/api/board/resolve-fyi", {
+    project: "studio",
+    agent: "human",
+    messageIds: [saved.room.messages[0].id],
+    note: "Seen.",
+  });
+  expect(response.status).toBe(200);
+  expect((await response.json()).room.messages[0]).toMatchObject({
+    resolvedBy: "human",
+    resolutionNote: "Seen.",
+  });
+});

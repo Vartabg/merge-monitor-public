@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { postJson } from "./api";
 import type { Assignment, AssignmentCreate } from "./assignmentTypes";
+import { AssignmentPeople } from "./AssignmentPeople";
 
 const fields: {
   name: keyof AssignmentCreate;
@@ -34,6 +35,7 @@ export function AssignmentForm({
 }) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [peopleReady, setPeopleReady] = useState(false);
   const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     title.current?.focus();
@@ -71,6 +73,8 @@ export function AssignmentForm({
         <fieldset disabled={saving || disabled} className="team-fields">
           <legend className="sr-only">Assignment details</legend>
           {fields.map(({ name, label, max, multiline }) => (
+            name === "project" ? <AssignmentPeople key={name} onReady={setPeopleReady} /> :
+            ["owner", "reviewer"].includes(name) ? null :
             <label key={name} className={multiline ? "team-wide" : ""}>
               {label}
               {multiline ? (
@@ -87,7 +91,7 @@ export function AssignmentForm({
           </p>
         )}
         <div className="team-actions">
-          <button className="button" disabled={saving || disabled}>
+          <button className="button" disabled={saving || disabled || !peopleReady}>
             {saving ? "Saving…" : "Save assignment"}
           </button>
           <button
