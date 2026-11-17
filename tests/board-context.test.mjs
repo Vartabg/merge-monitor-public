@@ -51,6 +51,27 @@ it("bounds context, retains oldest pending requests and decisions, and makes eve
   expect(brief.guidance).toContain("does not mark");
   expect(report).toEqual(before);
 });
+it("keeps only a finding's severity and claim in the brief and the whole finding in the detail", () => {
+  const r = structuredClone(report);
+  r.room.messages[0].kind = "handoff";
+  r.room.messages[0].finding = {
+    claim: "Update 51 fails after the window rolls.",
+    evidence: "tests/assignment-durability.test.mjs",
+    expected: "Updates keep succeeding.",
+    actual: "Validation rejects update 51.",
+    severity: "blocking",
+    scope: "Validation only.",
+    doneCheck: "npx vitest run tests/assignment-durability.test.mjs",
+  };
+  const brief = compactContext(r, "reviewer");
+  expect(brief.messages[0].finding).toEqual({
+    severity: "blocking",
+    claim: "Update 51 fails after the window rolls.",
+  });
+  expect(brief.messages[1].finding).toBeUndefined();
+  expect(brief.guidance).toContain("severity and claim");
+  expect(messageDetail(r, "0").message.finding.doneCheck).toContain("vitest");
+});
 it("loads exact truncated content and its reply parent without mixing projects", () => {
   const r = structuredClone(report);
   r.room.messages[2].replyTo = "1";

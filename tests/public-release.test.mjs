@@ -5,6 +5,10 @@ import { join, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { repository } from "./fixtures.mjs";
 
+const SAMPLE_USER = "alice";
+const SAMPLE_HOME = ["", "Users", SAMPLE_USER].join("/");
+const SAMPLE_REPO_PATH = [SAMPLE_HOME, "code", "merge-monitor"].join("/");
+
 const fixtures = [];
 afterEach(async () => { await Promise.all(fixtures.splice(0).map((f) => f.cleanup())); });
 async function candidate() {
@@ -14,6 +18,7 @@ async function candidate() {
   await put("scripts/export-public.mjs", await readFile(new URL("../scripts/export-public.mjs", import.meta.url)));
   await put("package.json", JSON.stringify({ name: "fixture", private: true }));
   await put("package-lock.json", JSON.stringify({ packages: { "": {} } }));
+  await put("dispatch.config.example.json", JSON.stringify({ agents: [{ boardAgent: "op-helper", project: "example", harness: "opencode", cwd: "/Users/you/code/your-project" }] }));
   await put("docs/public-release/LICENSE.txt", "MIT License\nFixture for export tests.\n");
   for (const file of ["README.md", "CONTRIBUTING.md", "SECURITY.md"]) await put(`docs/public-release/${file}`, "Public documentation\n");
   await put("docs/openapi.json", "{}\n");
@@ -23,7 +28,8 @@ async function candidate() {
   await put("docs/public-release/RELEASE-PLAN.md", "PRIVATE_RELEASE_PLAN_MARKER\n");
   await put("docs/public-release/future-internal-note.md", "PRIVATE_FUTURE_NOTE_MARKER\n");
   await put("docs/TEAM_WORKERS.md", "Public connected-agent instructions\n");
-  await put("docs/TEAM_BOARD.md", "node /Users/vartny/code/merge-monitor/scripts/board-mcp.mjs\n");
+  await put("docs/TEAM_BOARD.md", `node ${SAMPLE_REPO_PATH}/scripts/board-mcp.mjs\n`);
+  await put("docs/TEAM_DISPATCH.md", `Dispatcher docs for ${SAMPLE_REPO_PATH}\n`);
   await put("docs/SAVED_DECISIONS.md", "Public decision search instructions\n");
   await put(".env", "PRIVATE_TEST_MARKER=example\n");
   f.git(["add", "."]);
@@ -45,14 +51,27 @@ it("exports committed allowlisted files with hashes, excluding private config, p
   expect(await readdir(f.output)).not.toContain(".env");
   await expect(stat(join(f.output, "monitor.config.json"))).rejects.toThrow();
   expect(await readFile(join(f.output, "monitor.config.example.json"), "utf8")).not.toContain("/private/local/project");
+  expect(await readFile(join(f.output, "dispatch.config.example.json"), "utf8")).toContain("/Users/you/code/your-project");
+  expect(await readFile(join(f.output, ".gitignore"), "utf8")).toContain("dispatch.config.json");
   await expect(stat(join(f.output, "docs/plans/private.md"))).rejects.toThrow();
   await expect(stat(join(f.output, "docs/public-release/RELEASE-PLAN.md"))).rejects.toThrow();
   await expect(stat(join(f.output, "docs/public-release/future-internal-note.md"))).rejects.toThrow();
   expect(await readFile(join(f.output, "docs/TEAM_WORKERS.md"), "utf8")).toContain("connected-agent");
   expect(await readFile(join(f.output, "docs/TEAM_BOARD.md"), "utf8")).toContain("/absolute/path/to/merge-monitor/");
-  expect(await readFile(join(f.output, "docs/TEAM_BOARD.md"), "utf8")).not.toContain("/Users/vartny/");
+  expect(await readFile(join(f.output, "docs/TEAM_BOARD.md"), "utf8")).not.toContain(SAMPLE_HOME);
+  expect(await readFile(join(f.output, "docs/TEAM_DISPATCH.md"), "utf8")).toContain("/absolute/path/to/merge-monitor");
+  expect(await readFile(join(f.output, "docs/TEAM_DISPATCH.md"), "utf8")).not.toContain(SAMPLE_HOME);
   for (const { path, sha256 } of manifest.files) expect(createHash("sha256").update(await readFile(join(f.output, path))).digest("hex")).toBe(sha256);
   expect(JSON.parse(await readFile(join(f.output, "package.json"), "utf8")).license).toBe("MIT");
+});
+
+it("refuses export when source or test files contain an unredacted personal path", async () => {
+  const f = await candidate();
+  await f.put("src/leak.ts", `export const leaked = "${SAMPLE_HOME}/secrets";\n`);
+  f.git(["add", "src/leak.ts"]);
+  f.git(["commit", "-m", "add leak fixture"]);
+  expect(() => f.run(f.output)).toThrow(/personal path or username/);
+  await expect(stat(f.output)).rejects.toThrow();
 });
 
 it("refuses dirty sources and an existing destination without altering either", async () => {

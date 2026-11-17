@@ -7,7 +7,7 @@ Merge Monitor MCP and terminal check-ins now include `savedDecisions` relevant t
 Use `team_search_decisions` with the configured `project` and remembered `query`, or:
 
 ```sh
-npm run --silent board -- decisions --project garovartabedian --query 'Excel landing menu'
+npm run --silent board -- decisions --project example --query 'landing menu'
 ```
 
 The search includes active project board decisions and Common Ground decisions. Older relevant board decisions are included before filling the brief with recent ones. No lexical match returns no saved decision; it never guesses missing terms. Superseded Common Ground decisions remain in Common Ground but are omitted from agent recall. Board decisions retain their existing resolution semantics.

@@ -31,7 +31,7 @@ export async function createService(
     resolve(`${statePath}.runtime`, "executions.json"),
   );
   const monitor = new Monitor(config, store);
-  const worker = createWorker(monitor);
+  const worker = createWorker(monitor, { executions });
   if (startWorker) worker.start();
   return {
     monitor,

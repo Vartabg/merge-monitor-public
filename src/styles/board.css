@@ -135,6 +135,46 @@
   white-space: pre-wrap;
   font-size: 17px;
 }
+.board-finding {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.board-finding > div {
+  display: grid;
+  grid-template-columns: minmax(84px, 120px) 1fr;
+  gap: 10px;
+}
+.board-finding dt {
+  color: var(--muted);
+  font-size: 14px;
+}
+.board-finding dd {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.board-severity {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.board-severity-blocking {
+  background: var(--amber);
+  color: #142027;
+}
+.board-severity-non-blocking {
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.board-resolve-hint {
+  margin: 0;
+  align-self: center;
+}
 .board-reply-context {
   border-left: 2px solid var(--line);
   padding-left: 12px;

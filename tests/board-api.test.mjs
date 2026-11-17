@@ -164,6 +164,15 @@ it("exposes working MCP tools to separate agent connections over stdio", async (
         text: "Verify the board.",
         replyTo: "",
         requestId: crypto.randomUUID(),
+        finding: {
+          claim: "Pending requests survive a read.",
+          evidence: "tests/board-api.test.mjs",
+          expected: "pendingIds keeps the handoff.",
+          actual: "Unverified.",
+          severity: "non-blocking",
+          scope: "Board API only.",
+          doneCheck: "team_read_board returns one pending id.",
+        },
       },
     });
     expect(result.isError).not.toBe(true);
@@ -187,6 +196,13 @@ it("exposes working MCP tools to separate agent connections over stdio", async (
     expect(JSON.parse(detail.content[0].text).message.text).toBe(
       "Verify the board.",
     );
+    expect(JSON.parse(detail.content[0].text).message.finding.severity).toBe(
+      "non-blocking",
+    );
+    expect(brief.messages[0].finding).toEqual({
+      severity: "non-blocking",
+      claim: "Pending requests survive a read.",
+    });
 
     const ack = await clients[1].callTool({
       name: "team_acknowledge",

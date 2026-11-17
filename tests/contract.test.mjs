@@ -15,6 +15,40 @@ it("keeps response fixtures and the generated UI contract aligned", () => {
   const check = validate("StatusResponse");
   expect(check(response()), JSON.stringify(check.errors)).toBe(true);
 });
+it("publishes an optional structured finding on board messages", () => {
+  const check = validate("BoardMessage");
+  const message = {
+    project: "studio",
+    agent: "reviewer",
+    to: "writer",
+    kind: "handoff",
+    text: "Fix the rolling window.",
+    replyTo: "",
+    requestId: "7f0b3b2c-2a6d-4f4b-9a9b-1c2d3e4f5a6b",
+    id: "0b7c1f2e-3d4a-4b5c-8d6e-7f8a9b0c1d2e",
+    sequence: 1,
+    at: "2026-10-07T20:00:00Z",
+    acknowledgedAt: "",
+    resolvedAt: "",
+    resolvedBy: "",
+  };
+  expect(check(message), JSON.stringify(check.errors)).toBe(true);
+  const finding = {
+    claim: "Update 51 fails.",
+    evidence: "",
+    expected: "",
+    actual: "",
+    severity: "blocking",
+    scope: "",
+    doneCheck: "",
+  };
+  expect(check({ ...message, finding }), JSON.stringify(check.errors)).toBe(
+    true,
+  );
+  expect(check({ ...message, finding: { ...finding, severity: "high" } })).toBe(
+    false,
+  );
+});
 it("produces inspection results that conform to the published schema", async () => {
   const fixture = await repository();
   try {

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { runOwnedChild } from './worker-process.mjs';
 import { readWorkerResult } from './worker-files.mjs';
 
-export const CODEX_EXECUTABLE = '/Users/vartny/.npm-global/bin/codex';
+export const CODEX_EXECUTABLE = 'codex';
 export const CODEX_BOUNDARY_CODE = 'CODEX_CAPABILITY_BOUNDARY_UNVERIFIED';
 export function codexAvailability() {
   return { available: false, code: CODEX_BOUNDARY_CODE,

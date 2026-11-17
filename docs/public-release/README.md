@@ -4,7 +4,7 @@ A local workspace for coding agents to share goals, decisions, questions and han
 
 The board records acknowledgment separately from resolution. Agents remain responsible for doing the work, reporting evidence and following the owner's review process.
 
-Version 0.9 adds durable assignment claims, renewable leases and direct result handoffs to a separate reviewer. Reviewers can queue a correction attempt without losing their findings to a retried older result. Project/agent choices are validated against the configured board. See [the connected-agent workflow](docs/TEAM_WORKERS.md) and [saved-decision search](docs/SAVED_DECISIONS.md).
+Version 0.10 builds on durable assignment claims, renewable leases, and reviewer handoffs (`docs/TEAM_WORKERS.md`, `docs/SAVED_DECISIONS.md`) with structured `finding` evidence on handoffs/blockers, opt-in local dispatch (`docs/TEAM_DISPATCH.md`), disk-runway backpressure (`minFreeDiskGiB`), shared-file airspace advisories, automatic builder-to-reviewer wakes, and optional fail-closed post-merge worktree cleanup. Every control boundary remains owner-governed: project configuration comes strictly from local files, and merging and deployment stay with the human project owner.
 
 ## Run locally
 
@@ -52,11 +52,11 @@ This scripted example uses the actual board store in a disposable temporary dire
 
 Configure a local MCP-capable client with `node` as the command and the absolute path to `scripts/board-mcp.mjs` as its argument. Keep the service running. No model credentials belong in this repository.
 
-Tell participating agents to list projects, check in with a unique name and scope, read context before work, address requests to a recipient, acknowledge responsibility, and post the outcome as a linked reply before resolving it. Closed sessions are not awakened automatically. Terminal users can run `node scripts/board-client.mjs --help`.
+Tell participating agents to list projects, check in with a unique name and scope, read context before work, address requests to a recipient, acknowledge responsibility, and post the outcome as a linked reply before resolving it. By default, closed sessions are not awakened automatically; if you explicitly configure `dispatch.config.example.json` into `~/.config/merge-monitor/dispatch.json` on macOS, the opt-in dispatcher (`docs/TEAM_DISPATCH.md`) watches queued/review inboxes and wakes configured iTerm harnesses while enforcing disk-runway backpressure (`minFreeDiskGiB`) and attaching shared-file airspace advisories. Terminal users can run `node scripts/board-client.mjs --help`.
 
 For scoped assignments, both worker and reviewer first check into the same project. The worker uses `team_inbox`, `team_claim`, `team_start` and `team_renew`, then `team_finish` with evidence. The reviewer independently checks that evidence and records acceptance or chooses **Request corrections (queue a new attempt)** in the progress form. A corrected attempt gets a fresh run and request ID. Keep the exact original finish body for delivery retries. A retry must preserve any later reviewer decision.
 
-The standalone worker launcher remains disabled before claiming work because its capability restrictions are unverified. Existing connected agents can use the protocol; no account, model, paid provider, or closed session is launched automatically. Agent identity, budgets and results are self-reported context rather than authentication or proof of execution.
+The standalone worker launcher remains disabled before claiming work because its capability restrictions are unverified; opt-in macOS wake dispatch (requires `~/.config/merge-monitor/dispatch.json`, iTerm, and local `opencode`/`muse` binaries) only opens configured interactive sessions inside your own workspace and never merges or deploys. Agent identity, budgets and results are self-reported context rather than authentication or proof of execution.
 
 ## What belongs in a handoff
 
@@ -66,7 +66,7 @@ The board records client-supplied messages; it does not independently verify the
 
 ## Project checks
 
-Git worktree inspection and combination previews are available alongside the board. If the optional `agent-task` utility is installed, its lifecycle status is used. Otherwise Git enumerates worktrees directly and task completion remains unknown. A clean combination preview does not mean tests passed. The monitor does not fetch, change your worktrees, merge or deploy.
+Git worktree inspection and combination previews are available alongside the board. Core checks work anywhere with Node.js >=22.12 and Git. If the optional `agent-task` utility is installed on `PATH`, its lifecycle status is used and the background worker can fail-closed reap clean, merged, unleased worktrees (without `--force`); otherwise Git enumerates worktrees directly, task completion remains unknown, and auto-reap is a silent no-op. A clean combination preview does not mean tests passed. The monitor never alters unmerged worktrees, merges branches, or deploys code.
 
 ## State and verification
 

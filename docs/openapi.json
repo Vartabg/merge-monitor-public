@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Merge Monitor local API",
-    "version": "0.9.1"
+    "version": "0.10.0"
   },
   "components": {
     "schemas": {
@@ -872,6 +872,58 @@
               "action",
               "fyi"
             ]
+          },
+          "finding": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "claim": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 400
+              },
+              "evidence": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 1200
+              },
+              "expected": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 600
+              },
+              "actual": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 600
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "blocking",
+                  "non-blocking"
+                ]
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 400
+              },
+              "doneCheck": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 600
+              }
+            },
+            "required": [
+              "claim",
+              "evidence",
+              "expected",
+              "actual",
+              "severity",
+              "scope",
+              "doneCheck"
+            ]
           }
         },
         "required": [
@@ -1105,6 +1157,58 @@
             "type": "string",
             "minLength": 0,
             "maxLength": 300
+          },
+          "finding": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "claim": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 400
+              },
+              "evidence": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 1200
+              },
+              "expected": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 600
+              },
+              "actual": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 600
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "blocking",
+                  "non-blocking"
+                ]
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 400
+              },
+              "doneCheck": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 600
+              }
+            },
+            "required": [
+              "claim",
+              "evidence",
+              "expected",
+              "actual",
+              "severity",
+              "scope",
+              "doneCheck"
+            ]
           }
         },
         "required": [

@@ -22,6 +22,16 @@ const kind = {
   enum: ["update", "decision", "question", "blocker", "handoff"],
 };
 const state = { type: "string", enum: ["working", "blocked", "idle", "done"] };
+const severity = { type: "string", enum: ["blocking", "non-blocking"] };
+const finding = object({
+  claim: text(400, 1),
+  evidence: text(1200),
+  expected: text(600),
+  actual: text(600),
+  severity,
+  scope: text(400),
+  doneCheck: text(600),
+});
 // "action" needs a decision or work from the recipient; "fyi" reports done work.
 const attention = { type: "string", enum: ["action", "fyi"] };
 const who = { project: id, agent: id };
@@ -38,7 +48,7 @@ const action = { ...who, messageId: uuid };
 export const boardSchemas = {
   BoardRead: object(who),
   BoardCheckIn: object(checkin),
-  BoardPost: object(post, { attention }),
+  BoardPost: object(post, { attention, finding }),
   BoardAction: object(action),
   BoardResolveFyi: object(
     {
@@ -69,7 +79,7 @@ export const boardSchemas = {
       resolvedAt: text(40),
       resolvedBy: text(80),
     },
-    { attention, resolutionNote: text(300) },
+    { attention, resolutionNote: text(300), finding },
   ),
   BoardRoom: object({
     project: id,

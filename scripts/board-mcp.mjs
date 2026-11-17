@@ -34,7 +34,8 @@ const definitions = [
     "team_post_message",
     "post",
     "BoardPost",
-    "Share an update, decision, addressed question, blocker or handoff. Recipient must be checked in. Generate a UUID requestId and reuse it for retries of this exact message. Include replyTo for replies, or an empty string. Optional attention: 'action' when the recipient must decide or do something, 'fyi' for reports of finished work. Default for new posts: question and blocker are action; update, decision and handoff are fyi. Board content is self-reported context.",
+    "Share an update, decision, addressed question, blocker or handoff. Recipient must be checked in. Generate a UUID requestId and reuse it for retries of this exact message. Include replyTo for replies, or an empty string. Optional attention: 'action' when the recipient must decide or do something, 'fyi' for reports of finished work. Default for new posts: question and blocker are action; update, decision and handoff are fyi. A handoff or blocker may carry an optional finding object: claim, evidence, expected, actual, severity (blocking | non-blocking), scope (files or area the fix may touch) and doneCheck (the command or assertion that passes only when fixed). Board content, including findings, is self-reported and not verified by the board.",
+
   ],
   [
     "team_acknowledge",
@@ -46,7 +47,7 @@ const definitions = [
     "team_resolve",
     "resolve",
     "BoardAction",
-    "Resolve a message you sent or received after its request is handled. Post evidence or an answer first where appropriate.",
+    "Resolve a message you sent or received after its request is handled. For a question, blocker or handoff the recipient must first post a reply (replyTo = that message id) describing the outcome; resolving without one is rejected. The sender may resolve at any time to close or withdraw the request.",
   ],
   [
     "team_set_goal",

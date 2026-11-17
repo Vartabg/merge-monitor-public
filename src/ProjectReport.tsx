@@ -28,6 +28,12 @@ export function ProjectReport({
   onBrowse: () => void;
 }) {
   const report = projectReport(status, repo);
+  const parkedMerged = status.worktrees.filter(
+    (w) =>
+      !w.primary &&
+      !repo.excludedBranches.includes(w.branch) &&
+      w.category === "finished",
+  );
   return (
     <section className="project-report" aria-labelledby="report-title">
       <div className="focus-card">
@@ -81,6 +87,17 @@ export function ProjectReport({
             })}
           </ul>
         </div>
+      )}
+      {parkedMerged.length > 0 && (
+        <p className="helper">
+          {parkedMerged.length} already-combined working{" "}
+          {parkedMerged.length === 1 ? "copy is" : "copies are"} still on disk
+          {!worker
+            ? " (background check status is unavailable)."
+            : worker.enabled
+              ? " (held back by active runs, local ignored files, or un-reaped branch state)."
+              : ". Turn on background checks to clear clean copies automatically."}
+        </p>
       )}
       {status.worktrees.some((w) => !w.primary) && (
         <button className="text-button browse-link" onClick={onBrowse}>
