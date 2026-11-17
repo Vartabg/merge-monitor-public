@@ -137,6 +137,68 @@ it("distinguishes acknowledgment from resolution and provides accessible reply c
   });
   expect(result.violations).toEqual([]);
 });
+it("shows a structured finding and withholds resolution until the owner has replied", async () => {
+  const handoff = {
+    ...question,
+    kind: "handoff",
+    text: "Fix the rolling window.",
+    finding: {
+      claim: "Update 51 fails after the window rolls.",
+      evidence: "tests/assignment-durability.test.mjs",
+      expected: "Updates keep succeeding.",
+      actual: "Validation rejects update 51.",
+      severity: "blocking",
+      scope: "",
+      doneCheck: "npx vitest run tests/assignment-durability.test.mjs",
+    },
+  };
+  const messagesWith = (extra: object[]) => ({
+    ...report,
+    room: { ...report.room, messages: [handoff, ...extra] },
+  });
+  vi.mocked(getJson).mockImplementation(async (url) =>
+    url === "/api/repos"
+      ? { repos: [{ id: "studio", label: "Studio" }], defaultRepo: "studio" }
+      : messagesWith([]),
+  );
+  const { container, unmount } = render(<Board />);
+  await screen.findAllByText(handoff.text);
+  expect(screen.getAllByText("Blocking")[0]).toBeInTheDocument();
+  expect(screen.getAllByText("Done check")[0]).toBeInTheDocument();
+  expect(screen.queryByText("Scope")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: /Mark resolved/ }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getAllByText("Reply with the outcome to resolve.")[0],
+  ).toBeInTheDocument();
+  const result = await axe.run(container, {
+    rules: { "color-contrast": { enabled: false } },
+  });
+  expect(result.violations).toEqual([]);
+  unmount();
+  vi.mocked(getJson).mockImplementation(async (url) =>
+    url === "/api/repos"
+      ? { repos: [{ id: "studio", label: "Studio" }], defaultRepo: "studio" }
+      : messagesWith([
+          {
+            ...question,
+            id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            sequence: 2,
+            agent: "human",
+            to: "backend",
+            kind: "update",
+            text: "Fixed; the durability suite passes.",
+            replyTo: question.id,
+            requestId: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+          },
+        ]),
+  );
+  render(<Board />);
+  expect(
+    (await screen.findAllByRole("button", { name: /Mark resolved/ }))[0],
+  ).toBeInTheDocument();
+});
 it("clears the old room and draft when switching projects", async () => {
   const user = userEvent.setup();
   render(<Board />);

@@ -151,13 +151,19 @@ export async function createBoardStore(
         fail("The recipient must check in to this project first.", 409);
       if (["question", "blocker", "handoff"].includes(value.kind) && !value.to)
         fail("Choose who should respond to this message.");
+      if (value.finding && !["handoff", "blocker"].includes(value.kind))
+        fail("A finding belongs on a handoff or blocker.");
       if (value.replyTo && !room.messages.some((m) => m.id === value.replyTo))
         fail("The original message is not in this project.", 404);
       const previous = room.messages.find(
         (m) => m.requestId === value.requestId,
       );
       if (previous) {
-        if (Object.keys(value).some((k) => value[k] !== previous[k]))
+        if (
+          Object.keys(value).some(
+            (k) => JSON.stringify(value[k]) !== JSON.stringify(previous[k]),
+          )
+        )
           fail("This request ID belongs to a different message.", 409);
         return view(value.project, value.agent);
       }
@@ -187,6 +193,17 @@ export async function createBoardStore(
       } else {
         if (![message.agent, message.to].includes(value.agent))
           fail("Only the sender or recipient can resolve this message.", 403);
+        if (
+          value.agent !== message.agent &&
+          ["question", "blocker", "handoff"].includes(message.kind) &&
+          !room.messages.some(
+            (m) => m.replyTo === message.id && m.agent === value.agent,
+          )
+        )
+          fail(
+            "Post a reply describing the outcome before resolving this request.",
+            409,
+          );
         message.resolvedAt ||= at;
         message.resolvedBy ||= value.agent;
       }

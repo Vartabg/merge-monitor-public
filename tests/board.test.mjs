@@ -58,6 +58,20 @@ it("carries a handoff across separate readers and restart without confusing rece
     messageId: id,
   });
   expect(store.view("studio", "reviewer").pendingIds).toEqual([id]);
+  await expect(
+    store.command("resolve", {
+      project: "studio",
+      agent: "reviewer",
+      messageId: id,
+    }),
+  ).rejects.toMatchObject({ statusCode: 409 });
+  expect(store.view("studio", "reviewer").pendingIds).toEqual([id]);
+  await store.command("post", {
+    ...message("reviewer", "writer"),
+    kind: "update",
+    text: "Reviewed: 11 tests pass.",
+    replyTo: id,
+  });
   await store.command("resolve", {
     project: "studio",
     agent: "reviewer",
@@ -150,6 +164,82 @@ it("preserves existing folder permissions and recovers from a failed save withou
   expect(
     JSON.parse(await readFile(path, "utf8")).rooms[0].messages,
   ).toHaveLength(1);
+});
+const finding = {
+  claim: "A rolling 50-event history still requires the oldest event to be queued.",
+  evidence: "tests/assignment-durability.test.mjs: update 51 is rejected.",
+  expected: "Updates keep succeeding after the window rolls.",
+  actual: "Update 51 fails validation.",
+  severity: "blocking",
+  scope: "Validation only; do not change persistence.",
+  doneCheck: "npx vitest run tests/assignment-durability.test.mjs passes.",
+};
+it("stores a structured finding on a handoff, keeps retries idempotent and rejects it elsewhere", async () => {
+  const post = { ...message(), finding };
+  const saved = await store.command("post", post);
+  expect(saved.room.messages[0].finding).toEqual(finding);
+  const retried = await store.command("post", structuredClone(post));
+  expect(retried.room.messages).toHaveLength(1);
+  expect(
+    (await createBoardStore(path)).view("studio").room.messages[0].finding,
+  ).toEqual(finding);
+  await expect(
+    store.command("post", { ...message(), kind: "update", to: "", finding }),
+  ).rejects.toThrow("handoff or blocker");
+  await expect(
+    store.command("post", {
+      ...message(),
+      finding: { ...finding, severity: "high" },
+    }),
+  ).rejects.toThrow("Invalid");
+  await expect(
+    store.command("post", {
+      ...message(),
+      finding: { ...finding, owner: "writer" },
+    }),
+  ).rejects.toThrow("Invalid");
+});
+it("lets the sender close a request without a reply but requires the recipient's outcome first", async () => {
+  const first = (await store.command("post", message())).room.messages[0].id;
+  await store.command("resolve", {
+    project: "studio",
+    agent: "writer",
+    messageId: first,
+  });
+  expect(store.view("studio").room.messages[0].resolvedBy).toBe("writer");
+  const second = (
+    await store.command("post", { ...message(), kind: "question" })
+  ).room.messages[1].id;
+  await expect(
+    store.command("resolve", {
+      project: "studio",
+      agent: "reviewer",
+      messageId: second,
+    }),
+  ).rejects.toThrow("reply describing the outcome");
+  await store.command("post", {
+    ...message("reviewer", "writer"),
+    kind: "update",
+    text: "Answer: yes.",
+    replyTo: second,
+  });
+  await store.command("resolve", {
+    project: "studio",
+    agent: "reviewer",
+    messageId: second,
+  });
+  expect(store.view("studio", "reviewer").pendingIds).toEqual([]);
+});
+it("loads a saved board written before findings existed", async () => {
+  const saved = JSON.parse(await readFile(path, "utf8"));
+  const report = await store.command("post", message());
+  const legacy = JSON.parse(await readFile(path, "utf8"));
+  expect(legacy.rooms[0].messages[0]).not.toHaveProperty("finding");
+  const reopened = await createBoardStore(path);
+  expect(reopened.view("studio").room.messages[0].id).toBe(
+    report.room.messages[0].id,
+  );
+  expect(saved.version).toBe(1);
 });
 it("rejects malformed saved data and invalid fields instead of resetting state", async () => {
   await expect(

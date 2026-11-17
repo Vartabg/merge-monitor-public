@@ -47,6 +47,11 @@ export function workerClient(origin, fetcher = fetch, { deadline = Infinity } = 
   }
   return {
     inbox: input => request(`/api/team/inbox?${new URLSearchParams(input)}`),
+    status: repo => {
+      if (typeof repo !== "string" || !repo.trim())
+        throw new Error("Local worker API status requires a repository ID.");
+      return request(`/api/status?${new URLSearchParams({ repo })}`);
+    },
     ...Object.fromEntries(['claim', 'start', 'renew', 'finish', 'cancel', 'abandon'].map(command =>
       [command, (input, options) => post(command, input, options)])),
   };

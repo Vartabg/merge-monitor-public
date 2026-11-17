@@ -1,7 +1,7 @@
 {
   "name": "merge-monitor",
   "private": true,
-  "version": "0.9.1",
+  "version": "0.10.0",
   "type": "module",
   "scripts": {
     "dev": "node server/index.mjs --dev",
@@ -21,7 +21,8 @@
     "team:queue": "node scripts/team-queue.mjs",
     "team:work": "node scripts/team-work.mjs",
     "team:worker": "node scripts/team-worker.mjs",
-    "board": "node scripts/board-client.mjs"
+    "board": "node scripts/board-client.mjs",
+    "dispatch": "node scripts/dispatch.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",

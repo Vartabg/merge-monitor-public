@@ -1,0 +1,21 @@
+{
+  "intervalSeconds": 30,
+  "agents": [
+    {
+      "boardAgent": "muse-helper",
+      "project": "example",
+      "harness": "muse",
+      "cwd": "/Users/you/code/your-project"
+    },
+    {
+      "boardAgent": "op-helper",
+      "project": "example",
+      "harness": "opencode",
+      "cwd": "/Users/you/code/your-project"
+    }
+  ],
+  "claimDeadlineSeconds": 300,
+  "maxWakesPerCycle": 2,
+  "minFreeDiskGiB": 50,
+  "dispatcherAgent": "board-dispatcher"
+}

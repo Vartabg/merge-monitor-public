@@ -15,12 +15,22 @@ const labels = {
   handoff: "Ready for the next agent",
 };
 const person = (agent: string) => (agent === "human" ? "You" : agent);
+const requestKinds = ["question", "blocker", "handoff"];
+const findingRows: [keyof NonNullable<Message["finding"]>, string][] = [
+  ["claim", "Claim"],
+  ["evidence", "Evidence"],
+  ["expected", "Expected"],
+  ["actual", "Actual"],
+  ["scope", "Scope"],
+  ["doneCheck", "Done check"],
+];
 // Matches the server default for messages saved before attention existed.
 const isFyi = (m: Message) =>
   (m.attention ||
     (["question", "blocker", "handoff"].includes(m.kind)
       ? "action"
       : "fyi")) === "fyi";
+
 const date = (at: string) =>
   new Date(at).toLocaleString(undefined, {
     month: "short",
@@ -287,6 +297,13 @@ function ProjectBoard({ project }: { project: string }) {
   function messageCard(m: Message) {
     const original =
       m.replyTo && messages.find((item) => item.id === m.replyTo);
+    const repliedByYou = messages.some(
+      (item) => item.replyTo === m.id && item.agent === "human",
+    );
+    const canResolve =
+      m.agent === "human" ||
+      (m.to === "human" && (!requestKinds.includes(m.kind) || repliedByYou));
+    const finding = m.finding;
     return (
       <li key={m.id} className="board-message">
         <div className="board-message-meta">
@@ -315,6 +332,28 @@ function ProjectBoard({ project }: { project: string }) {
             </summary>
             <p className="board-body">{m.text}</p>
           </details>
+        )}
+        {finding && (
+          <dl className="board-finding">
+            <div>
+              <dt>Severity</dt>
+              <dd>
+                <span
+                  className={`board-severity board-severity-${finding.severity}`}
+                >
+                  {finding.severity === "blocking" ? "Blocking" : "Non-blocking"}
+                </span>
+              </dd>
+            </div>
+            {findingRows
+              .filter(([key]) => finding[key])
+              .map(([key, label]) => (
+                <div key={key}>
+                  <dt>{label}</dt>
+                  <dd>{finding[key]}</dd>
+                </div>
+              ))}
+          </dl>
         )}
         <p className="board-status">
           {m.resolvedAt
@@ -348,7 +387,7 @@ function ProjectBoard({ project }: { project: string }) {
                 <span className="sr-only"> message {m.sequence}</span>
               </button>
             )}
-            {(m.to === "human" || m.agent === "human") && (
+            {canResolve ? (
               <button
                 className="button secondary"
                 disabled={disabled}
@@ -357,6 +396,12 @@ function ProjectBoard({ project }: { project: string }) {
                 Mark resolved
                 <span className="sr-only"> message {m.sequence}</span>
               </button>
+            ) : (
+              m.to === "human" && (
+                <p className="board-status board-resolve-hint">
+                  Reply with the outcome to resolve.
+                </p>
+              )
             )}
           </div>
         )}

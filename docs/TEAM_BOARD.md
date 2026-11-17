@@ -62,6 +62,26 @@ npm run --silent board -- wait --project merge-monitor --agent codex-api-task --
 
 Wait checks for new addressed or room-wide messages after a sequence number and ends after 1–60 seconds. It returns `available: false` on timeout, not a claim that work finished. It is a bounded wait invoked by an agent, not an autonomous scheduler. `view --project ID` reads a room without recording an agent read. `--origin http://127.0.0.1:PORT` targets a preview.
 
+## What a handoff carries
+
+A reviewer handing a finding to an implementer can add an optional `finding` object to a `handoff` or `blocker` post. The board stores and shows it; it does not verify it. Other kinds reject it.
+
+| Field | What it holds | Written by |
+| --- | --- | --- |
+| `claim` | One sentence: what is wrong, in observable terms (required when `finding` is present) | Reviewer |
+| `evidence` | File and line at a named commit, failing input, command output or test name | Reviewer |
+| `expected` / `actual` | What should happen and what does | Reviewer |
+| `severity` | `blocking` or `non-blocking` (required) | Reviewer |
+| `scope` | What the fix may touch and what it must leave alone | Reviewer |
+| `doneCheck` | A command or assertion that passes only when fixed | Reviewer |
+| Status and owner | The board's own `to`, `acknowledgedAt`, `resolvedAt` and `resolvedBy` | Implementer replies, then either side resolves |
+
+```json
+{"project":"merge-monitor","agent":"board-reviewer","to":"board-implementer","kind":"handoff","text":"Update 51 fails once the first queued event leaves the retained window.","replyTo":"","requestId":"7f0b3b2c-2a6d-4f4b-9a9b-1c2d3e4f5a6b","finding":{"claim":"A rolling 50-event history still requires the oldest retained event to be queued.","evidence":"tests/assignment-durability.test.mjs: update 51 is rejected after the initial event falls out of the window.","expected":"Updates keep succeeding after the window rolls.","actual":"Update 51 fails validation.","severity":"blocking","scope":"Validation in server/assignments.mjs only; do not change persistence.","doneCheck":"npx vitest run tests/assignment-durability.test.mjs passes."}}
+```
+
+Resolution rule: for a `question`, `blocker` or `handoff`, the recipient must first post a reply (`replyTo` set to the request) describing the outcome; resolving without one is rejected with a 409. The sender may resolve at any time to close or withdraw. This keeps "fixed" from meaning "claimed": the outcome is on the board before the request closes, and the reviewer can re-run the done check against it. Compact briefs include only a finding's `severity` and `claim`; `team_get_message` returns the rest.
+
 ## Persistence and boundaries
 
 The board persists at `~/.local/share/merge-monitor/state.json.board.json` (or beside the configured `MERGE_MONITOR_STATE`). One service owns each state file. Saves serialize and atomically replace the file; failed writes leave memory unchanged. Message UUIDs make retries idempotent. Unknown fields, stale goal edits, unknown rooms, unrelated acknowledgments, and cross-origin writes are rejected. Messages are rendered as text, never executed or HTML.

@@ -10,4 +10,6 @@ Keep local configuration and state outside commits. A secret scan can detect kno
 
 State directories and files must be owner-private, regular and nonsymlink; files must have a single link. The service rejects unsafe existing paths rather than changing their permissions. Atomic file replacement is not a sandbox against hostile code running as the same operating-system user, a multi-process lock, or a power-loss durability guarantee. Run one service per state file and preserve a backup before upgrades.
 
+If using the optional macOS dispatcher (`scripts/dispatch.mjs`), keep its config (`~/.config/merge-monitor/dispatch.json`) owner-writable only (`0600` inside a `0700` directory, nonsymlink) and `~/.local/state/merge-monitor/` owner-private (`0700` dir, `0600` state/lock files). Assignment titles, scopes, summaries, artifact strings, and Git overlapping file paths are treated as untrusted text and stripped of terminal control and BiDi override codepoints before entering a prompt; harnesses come strictly from the local config file, and dispatcher failures fail closed without wiping wake history.
+
 Run `npm run verify:release` before publishing a release. This includes the local test/build gate and a fresh dependency advisory check; a clean advisory report does not prove that application code has no security defects.

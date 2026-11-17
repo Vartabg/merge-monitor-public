@@ -5,6 +5,15 @@ import { assignmentRequest } from "./assignment-api.mjs";
 import { createTeamApi } from "./team-api.mjs";
 import { version } from "./release.mjs";
 
+export function isAllowedLoopbackHost(hostHeader, localPort) {
+  return (
+    typeof hostHeader === "string" &&
+    Number.isInteger(localPort) &&
+    localPort > 0 &&
+    [`127.0.0.1:${localPort}`, `localhost:${localPort}`].includes(hostHeader)
+  );
+}
+
 function fail(message, statusCode = 400) {
   throw Object.assign(new Error(message), { statusCode });
 }
@@ -65,12 +74,12 @@ export function createApi(monitor, worker, assignments, board, executions,
     }
     if (!path.startsWith("/api/")) return next();
     try {
-      const port = req.socket.localPort;
-      const hosts = [`127.0.0.1:${port}`, `localhost:${port}`];
-      if (!hosts.includes(req.headers.host))
+      const port = req.socket?.localPort;
+      if (!isAllowedLoopbackHost(req.headers.host, port))
         fail("Use the local Merge Monitor address.", 403);
       const origin = req.headers.origin;
-      if (origin && !hosts.map((host) => `http://${host}`).includes(origin))
+      const origins = [`http://127.0.0.1:${port}`, `http://localhost:${port}`];
+      if (origin && !origins.includes(origin))
         fail("Requests must come from the local dashboard.", 403);
       if (req.headers["sec-fetch-site"] === "cross-site")
         fail("Cross-site requests are not allowed.", 403);

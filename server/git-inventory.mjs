@@ -59,3 +59,43 @@ export async function readWorktreeInventory(repo, { run = command } = {}) {
     }
   }
 }
+
+export async function reapMergedWorktrees(repo, { run = command } = {}) {
+  let result;
+  try {
+    result = await run(
+      "agent-task",
+      ["reap", "--repo", repo.path, "--json"],
+      { timeout: 60_000 },
+    );
+  } catch (error) {
+    if (error?.cause?.code === "ENOENT" || error?.code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
+  let payload;
+  try {
+    payload = JSON.parse(result.stdout);
+  } catch (error) {
+    throw new Error("agent-task reap returned malformed JSON.", {
+      cause: error,
+    });
+  }
+  if (!payload || !Array.isArray(payload.reaped)) {
+    throw new Error("agent-task reap returned an unsupported format.");
+  }
+  return payload.reaped
+    .filter(
+      (item) =>
+        item &&
+        typeof item === "object" &&
+        typeof item.path === "string" &&
+        typeof item.branch === "string",
+    )
+    .map((item) => ({
+      path: item.path,
+      branch: item.branch,
+      deleted_branch: Boolean(item.deleted_branch),
+    }));
+}

@@ -2784,6 +2784,16 @@ export interface components {
             requestId: string;
             /** @enum {string} */
             attention?: "action" | "fyi";
+            finding?: {
+                claim: string;
+                evidence: string;
+                expected: string;
+                actual: string;
+                /** @enum {string} */
+                severity: "blocking" | "non-blocking";
+                scope: string;
+                doneCheck: string;
+            };
         };
         BoardAction: {
             project: string;
@@ -2831,6 +2841,16 @@ export interface components {
             /** @enum {string} */
             attention?: "action" | "fyi";
             resolutionNote?: string;
+            finding?: {
+                claim: string;
+                evidence: string;
+                expected: string;
+                actual: string;
+                /** @enum {string} */
+                severity: "blocking" | "non-blocking";
+                scope: string;
+                doneCheck: string;
+            };
         };
         BoardRoom: {
             project: string;

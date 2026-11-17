@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { resolve, extname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isAllowedLoopbackHost } from "./api.mjs";
 import { createService } from "./service.mjs";
 
 export async function startServer({
@@ -16,6 +17,16 @@ export async function startServer({
   if (!development) await stat(resolve(dist, "index.html"));
   let vite;
   const server = createServer((req, res) => {
+    const localPort = req.socket?.localPort || server.address()?.port;
+    if (!isAllowedLoopbackHost(req.headers.host, localPort)) {
+      res.writeHead(403, {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+      });
+      res.end(JSON.stringify({ error: "Use the local Merge Monitor address." }));
+      return;
+    }
     void service.api(req, res, async () => {
       try {
         if (vite) return vite.middlewares(req, res);
