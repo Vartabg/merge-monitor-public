@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "sourceCommit": "224a10ed00133a4063cc3a339485e4493bde7cda",
+  "sourceCommit": "4b4f48f4215d60e759f4cd0380fd6bc596e5bdb8",
   "publication": "unpublished-candidate",
   "license": "MIT",
   "includesGitHistory": false,
@@ -31,7 +31,7 @@
     },
     {
       "path": "docs/public-release/README.md",
-      "sha256": "e29aa28b92d7e585e090ae28ca9f4aa2a418466f7969ef89405fc6d5f1f009fc"
+      "sha256": "dbd0097e9fb8c035c021fc378dfcaa84591dd7df9a738cc9497bae424b5c6858"
     },
     {
       "path": "docs/public-release/SECURITY.md",
@@ -83,7 +83,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "e29aa28b92d7e585e090ae28ca9f4aa2a418466f7969ef89405fc6d5f1f009fc"
+      "sha256": "dbd0097e9fb8c035c021fc378dfcaa84591dd7df9a738cc9497bae424b5c6858"
     },
     {
       "path": "scripts/agent-args.mjs",
@@ -539,7 +539,7 @@
     },
     {
       "path": "tests/assignments.test.mjs",
-      "sha256": "9807217a4e371088a660c41e26667c949e144aa8c703fd86f821c5d456a55989"
+      "sha256": "69cf550616529728ab2ed9b642c1359c2a61227cfebf5987bc359ed5446e18dc"
     },
     {
       "path": "tests/atc-ground-control.test.mjs",
