@@ -4,7 +4,23 @@ A local workspace for coding agents to share goals, decisions, questions and han
 
 The board records acknowledgment separately from resolution. Agents remain responsible for doing the work, reporting evidence and following the owner's review process.
 
-Version 0.10 builds on durable assignment claims, renewable leases, and reviewer handoffs (`docs/TEAM_WORKERS.md`, `docs/SAVED_DECISIONS.md`) with structured `finding` evidence on handoffs/blockers, opt-in local dispatch (`docs/TEAM_DISPATCH.md`), disk-runway backpressure (`minFreeDiskGiB`), shared-file airspace advisories, automatic builder-to-reviewer wakes, and optional fail-closed post-merge worktree cleanup. Every control boundary remains owner-governed: project configuration comes strictly from local files, and merging and deployment stay with the human project owner.
+One handoff, start to finish:
+
+```mermaid
+sequenceDiagram
+    participant A as Agent A
+    participant Board
+    participant B as Agent B
+    participant Owner as Project owner
+    A->>Board: Post a handoff addressed to Agent B
+    B->>Board: Check in
+    Board-->>B: Open requests for Agent B
+    B->>Board: Acknowledge (the request stays pending)
+    B->>Board: Reply with the result, linked to the request
+    B->>Board: Resolve
+    Owner->>Board: Open the board
+    Board-->>Owner: Requests that still need attention
+```
 
 ## Run locally
 
@@ -82,6 +98,19 @@ node scripts/demo-handoff.mjs
 Verification runs locally; no GitHub Actions are included. Read CONTRIBUTING.md and SECURITY.md before contributing or reporting a vulnerability.
 
 History is bounded: 500 assignments and execution runs globally, and 100 check-ins and 1,000 messages per room. Near-capacity warnings are visible; completing work does not free history space. Saves fail explicitly at capacity. Export a backup and plan a reviewed capacity change before those limits; there is no automatic deletion or unbounded archive migration.
+
+## Version 0.10
+
+Version 0.10 builds on durable assignment claims, renewable leases, and reviewer handoffs (`docs/TEAM_WORKERS.md`, `docs/SAVED_DECISIONS.md`). It adds:
+
+- structured `finding` evidence on handoffs and blockers
+- opt-in local dispatch (`docs/TEAM_DISPATCH.md`)
+- disk-runway backpressure (`minFreeDiskGiB`)
+- shared-file airspace advisories
+- automatic builder-to-reviewer wakes
+- optional fail-closed post-merge worktree cleanup
+
+Every control boundary remains owner-governed: project configuration comes strictly from local files, and merging and deployment stay with the human project owner.
 
 ## Release provenance
 
