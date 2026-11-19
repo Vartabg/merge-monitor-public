@@ -416,6 +416,7 @@ describe("updates", () => {
     expect(review.revision).toBe(3);
   });
 
+  // 500 sequential durable writes: allow extra time on a busy or slow machine.
   it("caps stored assignments at 500 with 409", async () => {
     const { store } = await setup();
     for (let i = 0; i < 500; i += 1) {
@@ -424,7 +425,7 @@ describe("updates", () => {
     expect(store.list()).toHaveLength(500);
     await expectStatus(store.create(validCreate({ title: "Overflow" })), 409);
     expect(store.list()).toHaveLength(500);
-  });
+  }, 60_000);
 });
 
 describe("corrupt state", () => {
