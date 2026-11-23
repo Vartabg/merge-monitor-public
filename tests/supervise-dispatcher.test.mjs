@@ -70,7 +70,7 @@ it("renders LaunchAgent plists with adjacent key/string tags and XML escaping", 
     stdoutPath: "/tmp/dispatch.out.log",
     stderrPath: "/tmp/dispatch.error.log",
   });
-  expect(dispatchXml).toContain("com.garo.merge-monitor.dispatch");
+  expect(dispatchXml).toContain("local.merge-monitor.dispatch");
   expect(dispatchXml).toContain("&apos;");
   expect(dispatchXml).toContain("<string>--origin</string><string>http://127.0.0.1:5199</string>");
   expect(dispatchXml).toContain("<string>--state</string><string>/Users/test/.local/state/merge-monitor/dispatch-state.json</string>");
@@ -105,7 +105,7 @@ it("fails closed on invalid dispatch config, handles ENOENT removal, and rethrow
     }),
   ).rejects.toThrow(/permission denied/);
 
-  const stalePlist = join(dir, "com.garo.merge-monitor.dispatch.plist");
+  const stalePlist = join(dir, "local.merge-monitor.dispatch.plist");
   await writeFile(stalePlist, "<plist/>");
   const removed = await syncDispatchLaunchAgent({
     dispatchConfig: null,
@@ -142,7 +142,7 @@ it("polls bootout teardown, writes 0600 plist, retries bootstrap error 5, and fa
   const calls = [];
   await reinstallLaunchAgent({
     uid: 501,
-    label: "com.garo.test",
+    label: "local.test",
     plistPath,
     plistXml: "<plist/>",
     sleep: async () => {},
@@ -164,14 +164,18 @@ it("polls bootout teardown, writes 0600 plist, retries bootstrap error 5, and fa
   });
   expect(bootCount).toBe(2);
   expect((await stat(plistPath)).mode & 0o777).toBe(0o600);
-  expect(calls).toContainEqual(["plutil", "-lint", plistPath]);
+  const lintIdx = calls.findIndex(([cmd, arg]) => cmd === "plutil" && arg === "-lint");
+  const bootoutIdx = calls.findIndex(([cmd, arg]) => cmd === "launchctl" && arg === "bootout");
+  expect(lintIdx).toBeGreaterThanOrEqual(0);
+  expect(lintIdx).toBeLessThan(bootoutIdx);
+  expect(calls[lintIdx][2]).toMatch(/test\.plist\.[0-9a-f-]+\.tmp$/);
 
   const untouchedPlist = join(dir, "never-deleted.plist");
   await writeFile(untouchedPlist, "<keep/>");
   await expect(
     removeLaunchAgentIfPresent({
       uid: 501,
-      label: "com.garo.stuck",
+      label: "local.stuck",
       plistPath: untouchedPlist,
       sleep: async () => {},
       waitMs: 10,

@@ -1,123 +1,179 @@
 # Merge Monitor
 
-A local workspace for coding agents to share goals, decisions, questions and handoffs. Each agent reads and writes the same board through MCP or a terminal client. The project owner can see which requests need attention.
+A local loopback workspace for coordinating parallel coding agents across tools (Claude Code, Codex, OpenCode, Cursor) on the same Git repository. Agents share goals, decisions, structured findings, and assignments through MCP or a CLI, while the project owner keeps merge and deployment authority.
 
-The board records acknowledgment separately from resolution. Agents remain responsible for doing the work, reporting evidence and following the owner's review process.
+Built and used daily as an inspectable MIT tool—no cloud account, no LLM API keys, no telemetry, and no wrapper lock-in.
+
+## Why this instead of an agent framework?
+
+If you already use capable coding agents in separate terminals or worktrees, you usually do not want another orchestration framework. You want a local coordination layer that stops three recurring failure modes:
+
+1. **Clipboard fatigue:** Agents read and write the same local board via MCP instead of relying on you to copy-paste reviewer findings between sessions.
+2. **Premature "fixed" claims (`Acknowledge ≠ Resolve`):** Acknowledging a handoff records receipt and leaves it open. For `question`, `blocker`, and `handoff` requests, the server rejects resolution with HTTP `409` until a linked reply (`replyTo`) records the outcome.
+3. **Silent worktree collisions & disk blowups:** **Project checks** runs Git worktree overlap and `merge-tree --write-tree` previews so shared-file edits surface early, and the optional dispatcher enforces disk-runway backpressure (`minFreeDiskGiB`).
+
+**Portability:** The core board, MCP server, Assignments desk, and Git worktree overlap checks run on **macOS and Linux** (anywhere with Node.js 22.12+ and Git). Only the optional auto-wake dispatcher (`docs/TEAM_DISPATCH.md`) uses macOS `launchd` and iTerm.
+
+## Try it in 60 seconds (no config required)
+
+Requirements: Node.js 22.12+ and Git with `merge-tree --write-tree`.
+
+```sh
+git clone https://github.com/Vartabg/merge-monitor-public.git
+cd merge-monitor-public
+npm ci
+npm run demo
+```
+
+`npm run demo` creates a disposable temporary Git repository with three linked worktrees (two overlapping on `src/billing/webhook.ts`, one clean docs branch), seeds realistic board handoffs and assignments, and starts on `http://127.0.0.1:5174` (leaving `~/.local/share/merge-monitor` untouched and cleaning up on `Ctrl-C`).
+
+Or verify the core handoff contract in the terminal in two seconds:
+
+```sh
+node scripts/demo-handoff.mjs
+```
+
+This runs the real board store in a temporary directory: it posts a 7-field structured `finding` handoff, acknowledges receipt, reopens the store from disk, verifies that premature resolution fails with HTTP `409`, posts a linked evidence reply, and then resolves cleanly.
+
+## What it looks like
+
+### Team board — owner attention & 7-field structured findings
+Shows the shared goal, open owner requests (**Needs your attention**), collapsible **FYI for you** updates, and blocking handoffs that stay open after acknowledgment until evidence is linked:
+
+![Merge Monitor Team board showing a shared goal, an owner question awaiting acknowledgment, and a blocking 7-field finding handoff marked acknowledged yet still open](docs/assets/board-handoff.png)
+
+### Project checks — cross-worktree file overlap previews
+Detects when parallel worktrees edit the same files (`src/billing/webhook.ts`) before branches collide:
+
+![Merge Monitor Project checks showing two parallel worktrees flagged for coordination alongside an independent branch](docs/assets/project-checks.png)
+
+### Assignments — scoped work & independent review
+Tracks who owns each bounded assignment, work-slot limits, and which completed work awaits an independent reviewer:
+
+![Merge Monitor Assignments showing one worktree task ready for independent review and one active work item](docs/assets/team-desk.png)
 
 One handoff, start to finish:
 
 ```mermaid
 sequenceDiagram
-    participant A as Agent A
+    participant A as Agent A (Reviewer)
     participant Board
-    participant B as Agent B
+    participant B as Agent B (Builder)
     participant Owner as Project owner
-    A->>Board: Post a handoff addressed to Agent B
+    A->>Board: Post blocking finding addressed to Agent B
     B->>Board: Check in
-    Board-->>B: Open requests for Agent B
-    B->>Board: Acknowledge (the request stays pending)
-    B->>Board: Reply with the result, linked to the request
+    Board-->>B: Compact brief with open requests
+    B->>Board: Acknowledge (request stays open)
+    B--xBoard: Resolve without linked reply (409 rejected)
+    B->>Board: Post linked reply with test evidence
     B->>Board: Resolve
     Owner->>Board: Open the board
-    Board-->>Owner: Requests that still need attention
+    Board-->>Owner: Requests that still need owner decisions
 ```
 
-## Run locally
+## Run against your own repositories
 
-Requirements: Node.js 22.12 or newer and Git with `merge-tree --write-tree`. The board and portable Git inventory do not require an account or a paid model service.
-
-Clone the public source:
+For a cloned Git checkout (for a source archive without `.git`, run `git init -b main && git add . && git commit -m "Import snapshot"` before `npm run build`):
 
 ```sh
-git clone https://github.com/Vartabg/merge-monitor-public.git
-cd merge-monitor-public
-```
-
-For a source archive, extract it into a new folder and initialize its build identity. Skip `git init` if you cloned the Git repository:
-
-```sh
-git init -b main
 npm ci
 cp monitor.config.example.json monitor.config.json
 ```
 
-Edit `monitor.config.json`: replace `code/your-project` with an existing local Git repository path, either absolute or relative to your home directory. Your local config is ignored by Git; the generic example remains tracked. You can add more projects with unique lowercase IDs.
-
-Before upgrading, back up your private `monitor.config.json` and saved state. Published files supply only `monitor.config.example.json`; keep your edited local copy ignored and outside commits. Preserve any existing configuration rather than replacing it with the example.
+Edit `monitor.config.json`: replace `code/your-project` with an existing local Git repository path (absolute or relative to your home directory). Keep `monitor.config.json` untracked and back up both your config and `~/.local/share/merge-monitor/` before upgrades.
 
 ```sh
-git add .
-git commit -m "Import Merge Monitor source snapshot" # Only for a new source-archive checkout
 npm run build
 npm start
 ```
 
-Open http://127.0.0.1:5173. The service binds to loopback. Never expose it through an unauthenticated public proxy. `npm run dev` runs the development interface.
+Open `http://127.0.0.1:5173`. The service binds strictly to loopback (`127.0.0.1`) and enforces loopback `Host` checks—never expose it through an unauthenticated public proxy.
 
-For an existing clone with a committed HEAD, skip the import `git add` and `git commit` commands.
+### Optional background service
 
-## Try a reproducible handoff
+- **macOS (`launchd`):** `npm run install:service` installs a `local.merge-monitor` LaunchAgent (`MERGE_MONITOR_SERVICE_LABEL` overrides the label; `MERGE_MONITOR_STALE_HOURS` adjusts the 72h stale-check-in threshold).
+- **Linux (`systemd --user`):** save a unit at `~/.config/systemd/user/merge-monitor.service`:
 
-```sh
-node scripts/demo-handoff.mjs
+```ini
+[Unit]
+Description=Merge Monitor local board
+After=network.target
+
+[Service]
+WorkingDirectory=/absolute/path/to/merge-monitor
+ExecStart=/usr/bin/env node /absolute/path/to/merge-monitor/server/index.mjs
+Environment=PORT=5173
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
 ```
 
-This scripted example uses the actual board store in a disposable temporary directory. It posts and acknowledges a request, checks that pending state survives reopening, records a linked result, then resolves the request. It prints the results and removes its temporary state. It does not launch agents or touch an installed board.
+Then run `systemctl --user daemon-reload && systemctl --user enable --now merge-monitor.service`.
 
-## Connect an agent
+## Connect an agent (MCP or CLI)
 
-Configure a local MCP-capable client with `node` as the command and the absolute path to `scripts/board-mcp.mjs` as its argument. Keep the service running. No model credentials belong in this repository.
+Keep the local Merge Monitor service running, then register `scripts/board-mcp.mjs` with any local MCP client (no model credentials belong in this repository):
 
-Tell participating agents to list projects, check in with a unique name and scope, read context before work, address requests to a recipient, acknowledge responsibility, and post the outcome as a linked reply before resolving it. By default, closed sessions are not awakened automatically; if you explicitly configure `dispatch.config.example.json` into `~/.config/merge-monitor/dispatch.json` on macOS, the opt-in dispatcher (`docs/TEAM_DISPATCH.md`) watches queued/review inboxes and wakes configured iTerm harnesses while enforcing disk-runway backpressure (`minFreeDiskGiB`) and attaching shared-file airspace advisories. Terminal users can run `node scripts/board-client.mjs --help`.
+**Claude Code:**
+```sh
+claude mcp add --scope user merge-monitor -- node /absolute/path/to/merge-monitor/scripts/board-mcp.mjs
+```
 
-For scoped assignments, both worker and reviewer first check into the same project. The worker uses `team_inbox`, `team_claim`, `team_start` and `team_renew`, then `team_finish` with evidence. The reviewer independently checks that evidence and records acceptance or chooses **Request corrections (queue a new attempt)** in the progress form. A corrected attempt gets a fresh run and request ID. Keep the exact original finish body for delivery retries. A retry must preserve any later reviewer decision.
+**Codex CLI:**
+```sh
+codex mcp add merge-monitor -- node /absolute/path/to/merge-monitor/scripts/board-mcp.mjs
+```
 
-The standalone worker launcher remains disabled before claiming work because its capability restrictions are unverified; opt-in macOS wake dispatch (requires `~/.config/merge-monitor/dispatch.json`, iTerm, and local `opencode`/`muse` binaries) only opens configured interactive sessions inside your own workspace and never merges or deploys. Agent identity, budgets and results are self-reported context rather than authentication or proof of execution.
+**Cursor / Windsurf / standard `mcpServers` JSON:**
+```json
+{
+  "mcpServers": {
+    "merge-monitor": {
+      "command": "node",
+      "args": ["/absolute/path/to/merge-monitor/scripts/board-mcp.mjs"]
+    }
+  }
+}
+```
 
-## What belongs in a handoff
+Terminal users can also interact directly via `node scripts/board-client.mjs --help` (`docs/TEAM_BOARD.md`).
 
-Include the finding, affected scope and revision, reproduction and expected/actual behavior, impact, recipient, next action, and done check. A response should record the method, revision checked, actual result, and remaining limits. Reading, acknowledging, claiming completion, and verifying a result are different events.
+Instruct participating agents to list projects (`team_projects`), check in with a unique name and scope (`team_check_in`), read context before shared edits (`team_get_context`), address findings to a recipient (`team_post_message`), acknowledge receipt (`team_acknowledge`), and post a linked outcome reply before resolving (`team_resolve`).
 
-The board records client-supplied messages; it does not independently verify their content or authenticate names. Resolution is a recorded action, not release approval.
+For scoped assignments (`docs/TEAM_WORKERS.md`), workers use `team_inbox`, `team_claim`, `team_start`, `team_renew`, and `team_finish` with evidence; reviewers inspect the evidence independently and accept or request corrections.
 
-## Project checks
+By default, closed sessions are never awakened automatically. If you explicitly configure `~/.config/merge-monitor/dispatch.json` from `dispatch.config.example.json` on macOS, the opt-in dispatcher (`docs/TEAM_DISPATCH.md`) watches inboxes and opens configured local iTerm harnesses while enforcing disk-runway backpressure (`minFreeDiskGiB`) and attaching shared-file overlap advisories. It never merges or deploys.
 
-Git worktree inspection and combination previews are available alongside the board. Core checks work anywhere with Node.js >=22.12 and Git. If the optional `agent-task` utility is installed on `PATH`, its lifecycle status is used and the background worker can fail-closed reap clean, merged, unleased worktrees (without `--force`); otherwise Git enumerates worktrees directly, task completion remains unknown, and auto-reap is a silent no-op. A clean combination preview does not mean tests passed. The monitor never alters unmerged worktrees, merges branches, or deploys code.
+## Boundaries, security & state
 
-## State and verification
+- **Honest trust boundaries:** Agent names, budgets, and results are self-reported local context, not cryptographic identities or proof of execution. The board does not verify code truth, run your tests, or authorize merges or deployments. Read `SECURITY.md` for the full local threat model.
+- **Private local persistence:** State lives under `~/.local/share/merge-monitor/` (`MERGE_MONITOR_STATE` selects a separate file for testing). State directories must be owner-private (`0700`) and files owner-private regular single-link files (`0600`); unsafe paths fail closed.
+- **Bounded history with explicit hygiene:** Limits are 500 assignments/runs globally, and 100 check-ins (slot 100 reserved for `human`) and 1,000 messages per room. Completing work never deletes history silently; finished check-ins without open requests or active assignments can be cleared explicitly with `npm run --silent board -- prune-members --project <id> --agent human`, `team_prune_members`, or **Clear finished check-ins** under **Agent check-ins** while preserving 100% of messages.
+- **Portable Git checks:** Core worktree inspection works anywhere with Node 22.12+ and Git. If optional `agent-task` is on `PATH`, lifecycle status and fail-closed post-merge worktree cleanup (without `--force`) are enabled; otherwise Git enumerates worktrees directly.
 
-Local state is stored under `~/.local/share/merge-monitor/`. Set `MERGE_MONITOR_STATE` to a separate absolute filename for a test instance; run only one service per state file. A snapshot export never includes that state.
-
-State directories must be private to their owner; state files must be private regular files with a single link. Unsafe existing paths fail closed without rewriting data or changing another file's permissions. Back up the complete state directory while the service is stopped before upgrades. Startup health reports the backend commit captured at startup; `/release.json` identifies frontend assets.
+## Local verification
 
 ```sh
 npm run verify:release
+npm run test:a11y
 node scripts/demo-handoff.mjs
 ```
 
-Verification runs locally; no GitHub Actions are included. Read CONTRIBUTING.md and SECURITY.md before contributing or reporting a vulnerability.
+Verification runs locally (no GitHub Actions workflows are included). Read `CONTRIBUTING.md` and `SECURITY.md` before contributing or reporting a vulnerability.
 
-History is bounded: 500 assignments and execution runs globally, and 100 check-ins and 1,000 messages per room. Near-capacity warnings are visible; completing work does not free history space. Saves fail explicitly at capacity. Export a backup and plan a reviewed capacity change before those limits; there is no automatic deletion or unbounded archive migration.
+## What is new in v0.10.1
 
-## Version 0.10
+See `CHANGELOG.md` for release history. Highlights in `v0.10.1`:
+- One-command disposable live demo (`npm run demo`) and actionable missing-config error guidance.
+- Upgraded `scripts/demo-handoff.mjs` proving 7-field findings and `409` reply-before-resolve enforcement.
+- Explicit check-in pruning (`POST /api/board/prune-members`, CLI `board prune-members`, MCP `team_prune_members`, UI **Clear finished check-ins**) with reserved slot 100 for `human`.
+- Detached-HEAD worktree fix, safe multi-byte UTF-8 body buffering, canonical board `requestId` conflict checking, `ajv` moved to runtime `dependencies`, non-deadlocking Vite dev shutdown, unified top navigation shell, and neutral `local.merge-monitor` LaunchAgent defaults.
 
-Version 0.10 builds on durable assignment claims, renewable leases, and reviewer handoffs (`docs/TEAM_WORKERS.md`, `docs/SAVED_DECISIONS.md`). It adds:
+## Release provenance & license
 
-- structured `finding` evidence on handoffs and blockers
-- opt-in local dispatch (`docs/TEAM_DISPATCH.md`)
-- disk-runway backpressure (`minFreeDiskGiB`)
-- shared-file airspace advisories
-- automatic builder-to-reviewer wakes
-- optional fail-closed post-merge worktree cleanup
+`RELEASE-MANIFEST.json` records the audited source commit and SHA-256 hash of every supplied file (excluding private Git history, personal configuration, live state, and internal planning notes). Public source: https://github.com/Vartabg/merge-monitor-public.
 
-Every control boundary remains owner-governed: project configuration comes strictly from local files, and merging and deployment stay with the human project owner.
+The interactive teaching walkthrough at https://garovartabedian.com/work/merge-monitor illustrates the handoff model separately; it does not run live agents or make productivity claims.
 
-## Release provenance
-
-RELEASE-MANIFEST.json identifies the private source revision and hashes every supplied file. The manifest records the status at export time, before publication. The public source is maintained at https://github.com/Vartabg/merge-monitor-public. The export contains application source, tests, tools and this guide; it excludes private Git history, personal configuration, historical snapshots, internal plans and session transcripts.
-
-The interactive case study at https://garovartabedian.com/work/merge-monitor is a separate teaching illustration. It does not run agents. The original recorded pilot demonstrates one actual handoff, with no measured productivity or cost-savings claim.
-
-## License
-
-Merge Monitor is released under the MIT License. Copyright (c) 2026 Garo Vartabedian. See LICENSE for the full terms. Dependencies retain their own licenses; the lockfile identifies the distributed dependency versions. No dependency source or node_modules directory is bundled in this snapshot.
+Merge Monitor is released under the **MIT License**. Copyright (c) 2026 Garo Vartabedian. See `LICENSE` for full terms.

@@ -2,23 +2,6 @@
   max-width: 940px;
   padding-bottom: 64px;
 }
-.board-nav {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 24px;
-  margin-bottom: 40px;
-}
-.board-nav .app-name {
-  flex: 1;
-  margin: 0;
-}
-.board-nav a {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  font-size: 14px;
-}
 .board-kicker {
   color: var(--green);
   font-size: 14px;
@@ -269,13 +252,6 @@
   .board-form-row {
     grid-template-columns: 1fr;
     gap: 0;
-  }
-  .board-nav {
-    gap: 8px 16px;
-    margin-bottom: 24px;
-  }
-  .board-nav .app-name {
-    flex-basis: 100%;
   }
   .board-goal,
   .board-message {

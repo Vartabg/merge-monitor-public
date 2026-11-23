@@ -75,7 +75,9 @@ const read = (path) => git(["show", `${commit}:${path}`], null);
 const roots = new Set(["package.json", "package-lock.json", "index.html", "orchestrator.mjs", "tsconfig.json", "vite.config.ts", "vitest.config.ts", "eslint.config.mjs", "dispatch.config.example.json"]);
 const publicDocs = new Set(["README.md", "CONTRIBUTING.md", "SECURITY.md", "LICENSE.txt"].map((name) => `docs/public-release/${name}`));
 const guides = new Set(["docs/TEAM_BOARD.md", "docs/TEAM_WORKERS.md", "docs/TEAM_DISPATCH.md", "docs/SAVED_DECISIONS.md"]);
-const source = git(["ls-tree", "-rz", "--name-only", commit]).split("\0").filter((path) => roots.has(path) || publicDocs.has(path) || guides.has(path) || /^(src|server|tests)\/.*\.(mjs|ts|tsx|css|json)$/.test(path) || /^scripts\/.*\.mjs$/.test(path));
+const allCommitted = git(["ls-tree", "-rz", "--name-only", commit]).split("\0").filter(Boolean);
+const committedSet = new Set(allCommitted);
+const source = allCommitted.filter((path) => roots.has(path) || publicDocs.has(path) || guides.has(path) || /^docs\/assets\/[a-z0-9-]+\.png$/.test(path) || /^(src|server|tests)\/.*\.(mjs|ts|tsx|css|json)$/.test(path) || /^scripts\/.*\.mjs$/.test(path));
 const license = read("docs/public-release/LICENSE.txt");
 const licensed = license.toString().startsWith("MIT License\n");
 if (!licensed && !license.toString().startsWith("License decision pending\n")) throw new Error("Unrecognized release license. Review it before exporting.");
@@ -90,10 +92,35 @@ for (const path of guides) {
   files.set(path, Buffer.from(cleaned));
 }
 for (const [path, sourcePath] of Object.entries({ "README.md": "docs/public-release/README.md", "CONTRIBUTING.md": "docs/public-release/CONTRIBUTING.md", "SECURITY.md": "docs/public-release/SECURITY.md" })) files.set(path, read(sourcePath));
+if (committedSet.has("docs/public-release/CHANGELOG.md")) {
+  files.set("CHANGELOG.md", read("docs/public-release/CHANGELOG.md"));
+}
 files.set("LICENSE", license);
 for (const path of ["docs/openapi.json"]) files.set(path, read(path));
 const pkg = JSON.parse(files.get("package.json"));
 pkg.license = licensed ? "MIT" : "UNLICENSED";
+if (licensed) {
+  pkg.description =
+    pkg.description ||
+    "Local loopback workspace for parallel coding agents to share goals, decisions, evidence-backed handoffs, and Git worktree overlap checks.";
+  pkg.homepage = "https://garovartabedian.com/work/merge-monitor";
+  pkg.repository = {
+    type: "git",
+    url: "https://github.com/Vartabg/merge-monitor-public.git",
+  };
+  pkg.bugs = {
+    url: "https://github.com/Vartabg/merge-monitor-public/issues",
+  };
+  pkg.keywords = [
+    "mcp",
+    "model-context-protocol",
+    "coding-agents",
+    "multi-agent",
+    "local-first",
+    "git-worktrees",
+    "developer-tools",
+  ];
+}
 files.set("package.json", Buffer.from(`${JSON.stringify(pkg, null, 2)}\n`));
 const lock = JSON.parse(files.get("package-lock.json"));
 lock.packages[""].license = pkg.license;

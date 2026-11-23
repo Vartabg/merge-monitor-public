@@ -106,6 +106,8 @@ const operation = (output, input) => ({
       [404, "Error"],
       [405, "Error"],
       [409, "Error"],
+      [413, "Error"],
+      [415, "Error"],
       [500, "Error"],
       [503, "Error"],
     ].map(([code, name]) => [

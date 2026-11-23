@@ -26,13 +26,20 @@ function send(res, status, body) {
   res.end(JSON.stringify(body));
 }
 async function body(req, fields, limit = 4096) {
-  if (req.headers["content-type"]?.split(";")[0] !== "application/json")
+  if (
+    req.headers["content-type"]?.split(";")[0].trim().toLowerCase() !==
+    "application/json"
+  )
     fail("Send JSON with Content-Type: application/json.", 415);
-  let text = "";
+  const chunks = [];
+  let totalBytes = 0;
   for await (const chunk of req) {
-    text += chunk;
-    if (Buffer.byteLength(text) > limit) fail("The request is too large.", 413);
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    totalBytes += buffer.length;
+    if (totalBytes > limit) fail("The request is too large.", 413);
+    chunks.push(buffer);
   }
+  const text = Buffer.concat(chunks, totalBytes).toString("utf8");
   let value;
   try {
     value = JSON.parse(text);
@@ -103,7 +110,7 @@ export function createApi(monitor, worker, assignments, board, executions,
         return send(
           res,
           200,
-          await boardRequest(path, req, board, monitor, body),
+          await boardRequest(path, req, board, monitor, body, assignments),
         );
       }
       switch (path) {

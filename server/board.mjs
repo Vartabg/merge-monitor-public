@@ -33,7 +33,17 @@ const requests = {
   resolve: "BoardAction",
   "resolve-fyi": "BoardResolveFyi",
   goal: "BoardGoal",
+  "prune-members": "BoardPruneMembers",
 };
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object")
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
+      .join(",")}}`;
+  return JSON.stringify(value);
+}
 // New posts without attention: questions and blockers need action.
 const postAttention = (kind) =>
   ["question", "blocker"].includes(kind) ? "action" : "fyi";
@@ -97,12 +107,17 @@ export async function createBoardStore(
       staleAgents: staleAgents(room, asOf, staleAfterHours),
     });
   }
-  async function change(command, value) {
+  async function change(command, value, options = {}) {
     if (!requests[command]) fail("Unknown board action.", 404);
     validate(requests[command], value);
     const next = structuredClone(state);
     let room = next.rooms.find((r) => r.project === value.project);
     if (!room) {
+      if (command === "prune-members") {
+        if (value.agent !== "human")
+          fail("Check in with a unique agent name before using this room.", 409);
+        return view(value.project, value.agent);
+      }
       if (next.rooms.length >= 100) fail("Board room limit reached.", 409);
       room = empty(value.project);
       next.rooms.push(room);
@@ -113,8 +128,16 @@ export async function createBoardStore(
     if (command === "check-in") {
       if (!value.task.trim()) fail("Describe your task.");
       if (!member) {
-        if (room.members.length >= 100)
-          fail("This room has reached its agent limit.", 409);
+        const limit =
+          value.agent === "human" ||
+          room.members.some((m) => m.agent === "human")
+            ? 100
+            : 99;
+        if (room.members.length >= limit)
+          fail(
+            "This room has reached its agent limit. Prune finished check-ins before adding another agent.",
+            409,
+          );
         member = { agent: value.agent, lastReadAt: "", lastReadSequence: 0 };
         room.members.push(member);
       }
@@ -124,8 +147,27 @@ export async function createBoardStore(
         state: value.state,
         checkedInAt: at,
       });
-    } else if (!member)
+    } else if (!member && !(command === "prune-members" && value.agent === "human"))
       fail("Check in with a unique agent name before using this room.", 409);
+    if (command === "prune-members") {
+      const openRecipients = new Set(
+        room.messages.filter((m) => !m.resolvedAt && m.to).map((m) => m.to),
+      );
+      const staleSet = new Set(staleAgents(room, at, staleAfterHours));
+      const protectedSet = new Set(options.protectedAgents || []);
+      room.members = room.members.filter((m) => {
+        if (
+          m.agent === "human" ||
+          m.agent === value.agent ||
+          openRecipients.has(m.agent) ||
+          protectedSet.has(m.agent)
+        )
+          return true;
+        if (m.state === "done") return false;
+        if (value.includeStale === true && staleSet.has(m.agent)) return false;
+        return true;
+      });
+    }
     if (command === "read") {
       member.lastReadSequence = room.messages.at(-1)?.sequence || 0;
       member.lastReadAt = at;
@@ -159,10 +201,17 @@ export async function createBoardStore(
         (m) => m.requestId === value.requestId,
       );
       if (previous) {
+        const incomingAttention =
+          previous.attention !== undefined
+            ? value.attention || postAttention(value.kind)
+            : value.attention;
         if (
-          Object.keys(value).some(
-            (k) => JSON.stringify(value[k]) !== JSON.stringify(previous[k]),
-          )
+          ["project", "agent", "to", "kind", "text", "replyTo", "requestId"].some(
+            (k) => value[k] !== previous[k],
+          ) ||
+          incomingAttention !== previous.attention ||
+          canonicalJson(value.finding ?? null) !==
+            canonicalJson(previous.finding ?? null)
         )
           fail("This request ID belongs to a different message.", 409);
         return view(value.project, value.agent);
@@ -244,14 +293,21 @@ export async function createBoardStore(
   }
   return {
     view,
-    command(command, input) {
-      const result = tail.then(() => change(command, input));
+    command(command, input, options) {
+      const result = tail.then(() => change(command, input, options));
       tail = result.catch(() => {});
       return result;
     },
   };
 }
-export async function boardRequest(path, req, board, monitor, body) {
+export async function boardRequest(
+  path,
+  req,
+  board,
+  monitor,
+  body,
+  assignments,
+) {
   if (path === "/api/board") {
     if (req.method !== "GET") fail("Use GET for this endpoint.", 405);
     const project = new URL(req.url, "http://localhost").searchParams.get(
@@ -270,5 +326,16 @@ export async function boardRequest(path, req, board, monitor, body) {
     command === "resolve-fyi" ? 65536 : 16384,
   );
   monitor.repo(value.project);
-  return board.command(command, value);
+  const protectedAgents =
+    command === "prune-members" && typeof assignments?.list === "function"
+      ? new Set(
+          assignments
+            .list()
+            .filter(
+              (a) => a.project === value.project && a.status !== "accepted",
+            )
+            .flatMap((a) => [a.owner, a.reviewer]),
+        )
+      : undefined;
+  return board.command(command, value, { protectedAgents });
 }

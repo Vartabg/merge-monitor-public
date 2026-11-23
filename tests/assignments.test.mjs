@@ -62,7 +62,7 @@ function validCreate(overrides = {}) {
     title: "Repair login redirect",
     project: "merge-monitor",
     purpose: "Fix the failing redirect so reviewers can sign in.",
-    owner: "Garo",
+    owner: "Owner",
     model: "Muse Spark",
     reviewer: "Codex",
     scope: "server/auth.mjs plus tests",
@@ -157,7 +157,7 @@ describe("creation", () => {
       ["overlong title", validCreate({ title: "t".repeat(121) })],
       ["overlong purpose", validCreate({ purpose: "p".repeat(801) })],
       ["control char", validCreate({ title: "bad\x01title" })],
-      ["reviewer equals owner", validCreate({ reviewer: " garo " })],
+      ["reviewer equals owner", validCreate({ reviewer: " owner " })],
     ];
     for (const [name, input] of cases) {
       await expectStatus(store.create(input), 400, name);

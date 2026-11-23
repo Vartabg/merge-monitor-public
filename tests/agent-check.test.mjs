@@ -89,7 +89,7 @@ describe("agent-check", () => {
       source: "user-provided",
       title: "Add widget",
       purpose: "Support widgets",
-      owner: "Garo",
+      owner: "Owner",
     });
     expect(report.tasks.find((t) => t.branch === "feature-b").note).toBeNull();
   });

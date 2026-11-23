@@ -1,4 +1,4 @@
-import { messageDetail } from "./board-context.mjs";
+import { messageDetail, mutationReceipt } from "./board-context.mjs";
 import { agentContext, searchSavedDecisions } from "./agent-context.mjs";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -73,14 +73,22 @@ export async function runBoard(args, fetcher = fetch) {
     "ack",
     "resolve",
     "goal",
+    "prune-members",
     "wait",
   ];
   if (!commands.includes(command))
     throw new Error(
-      "Use: board context|decisions|message|brief|view|check-in|post|ack|resolve|goal|wait --project ID [--agent NAME] [--input FILE] [--origin http://127.0.0.1:5173]. Decisions requires --query WORDS. Wait accepts --after SEQUENCE --seconds 1..60.",
+      "Use: board context|decisions|message|brief|view|check-in|post|ack|resolve|goal|prune-members|wait --project ID [--agent NAME] [--input FILE] [--origin http://127.0.0.1:5173]. Decisions requires --query WORDS. Prune-members accepts --include-stale. Wait accepts --after SEQUENCE --seconds 1..60.",
     );
   const options = {};
-  for (let i = 0; i < rest.length; i += 2) {
+  for (let i = 0; i < rest.length; ) {
+    if (rest[i] === "--include-stale") {
+      if (options["--include-stale"] !== undefined)
+        throw new Error("Provide each supported option once, with a value.");
+      options["--include-stale"] = true;
+      i += 1;
+      continue;
+    }
     if (
       ![
         "--project",
@@ -96,15 +104,19 @@ export async function runBoard(args, fetcher = fetch) {
     )
       throw new Error("Provide each supported option once, with a value.");
     options[rest[i]] = rest[i + 1];
+    i += 2;
   }
   const client = boardClient(options["--origin"], fetcher);
   if (command !== "decisions" && options["--query"] !== undefined)
     throw new Error("--query is only used with decisions.");
+  if (command !== "prune-members" && options["--include-stale"] !== undefined)
+    throw new Error("--include-stale is only used with prune-members.");
   const input = options["--input"]
     ? JSON.parse(await readFile(resolve(options["--input"]), "utf8"))
     : {};
   if (options["--project"]) input.project = options["--project"];
   if (options["--agent"]) input.agent = options["--agent"];
+  if (options["--include-stale"] === true) input.includeStale = true;
   if (
     !input.project ||
     (!["view", "decisions"].includes(command) && !input.agent)
@@ -176,13 +188,18 @@ export async function runBoard(args, fetcher = fetch) {
     return { available: false, project: input.project, after };
   }
   const report = await client(command === "brief" ? "read" : command, input);
-  if (command === "check-in")
-    report.brief = await agentContext(
+  if (command === "check-in") {
+    const receipt = mutationReceipt(report, "check-in", input);
+    receipt.brief = await agentContext(
       options["--origin"] || "http://127.0.0.1:5173",
       report,
       input.agent,
       { fetcher },
     );
+    return receipt;
+  }
+  if (command === "prune-members")
+    return mutationReceipt(report, "prune-members", input);
   return report;
 }
 if (

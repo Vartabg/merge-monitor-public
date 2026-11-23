@@ -30,6 +30,14 @@ it("keeps the functional text palette at AA contrast across its dark surfaces", 
       ).toBeGreaterThanOrEqual(4.5);
   expect(ratio("#142027", color("amber"))).toBeGreaterThanOrEqual(4.5);
   expect(ratio("#647d8c", color("bg"))).toBeGreaterThanOrEqual(3);
+  const boardCss = readFileSync("src/styles/board.css", "utf8");
+  const assignmentsCss = readFileSync("src/styles/assignments.css", "utf8");
+  expect(boardCss).toContain("#16322a");
+  expect(boardCss).toContain("#142027");
+  expect(assignmentsCss).toContain("#647d8c");
+  expect(ratio(color("green"), "#16322a")).toBeGreaterThanOrEqual(4.5);
+  expect(ratio("#142027", color("amber"))).toBeGreaterThanOrEqual(4.5);
+  expect(ratio("#647d8c", color("surface"))).toBeGreaterThanOrEqual(3);
 });
 it("ships reduced-motion and forced-colors styles", () => {
   const css = readFileSync("src/index.css", "utf8");

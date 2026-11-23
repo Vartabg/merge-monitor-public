@@ -18,7 +18,10 @@ export const operation = (name, input, code = 200) => ({
     400: response("Error"),
     403: response("Error"),
     404: response("Error"),
+    405: response("Error"),
     409: response("Error"),
+    413: response("Error"),
+    415: response("Error"),
     500: response("Error"),
   },
 });

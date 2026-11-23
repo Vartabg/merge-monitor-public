@@ -3,6 +3,45 @@
   margin: 0 auto;
   padding: 0 40px;
 }
+.board-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  margin-bottom: 32px;
+}
+.board-nav .app-name {
+  flex: 1;
+  margin: 0;
+}
+.board-nav a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  font-size: 14px;
+}
+.board-nav a[aria-current="page"] {
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+@media (max-width: 540px) {
+  .board-nav {
+    gap: 8px 16px;
+    margin-bottom: 24px;
+  }
+  .board-nav .app-name {
+    flex-basis: 100%;
+  }
+}
+@media (forced-colors: active) {
+  .board-nav a[aria-current="page"] {
+    text-decoration: underline;
+    font-weight: 700;
+  }
+}
 .topbar {
   display: flex;
   justify-content: space-between;

@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { repository } from "./fixtures.mjs";
+import { DEFAULT_SERVICE_LABEL } from "../scripts/service-env.mjs";
 
 const SAMPLE_USER = "alice";
 const SAMPLE_HOME = ["", "Users", SAMPLE_USER].join("/");
@@ -101,4 +102,62 @@ it("marks a candidate with a pending license as unlicensed and blocked for publi
   const manifest = JSON.parse(await readFile(join(f.output, "RELEASE-MANIFEST.json"), "utf8"));
   expect(manifest.publication).toBe("blocked-license-selection");
   expect(manifest.license).toBe("UNLICENSED");
+});
+
+it("uses neutral default LaunchAgent labels with no personal reverse-DNS identifiers in exportable files", async () => {
+  expect(DEFAULT_SERVICE_LABEL).toBe("local.merge-monitor");
+  const personalLabelRe = /\bcom\.[a-z0-9_-]+\.merge-monitor\b/i;
+  for (const rel of [
+    "scripts/install-service.mjs",
+    "scripts/service-env.mjs",
+    "docs/TEAM_DISPATCH.md",
+    "tests/assignments.test.mjs",
+    "tests/supervise-dispatcher.test.mjs",
+  ]) {
+    const content = await readFile(new URL(`../${rel}`, import.meta.url), "utf8");
+    expect(content, rel).not.toMatch(personalLabelRe);
+  }
+});
+
+it("exports docs/assets PNGs, root CHANGELOG.md, and public package metadata while excluding docs/social and .github/workflows", async () => {
+  const f = await candidate();
+  const minimalPng = Buffer.from(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c63000100000500010d0a2db40000000049454e44ae426082",
+    "hex",
+  );
+  await f.put("docs/assets/board-handoff.png", minimalPng);
+  await f.put("docs/public-release/CHANGELOG.md", "# Changelog\n\n## v0.10.1\n");
+  await f.put("docs/social/2026-11-23/draft.txt", "PRIVATE_SOCIAL_DRAFT\n");
+  await f.put(".github/workflows/ci.yml", "name: never-export\n");
+  f.git(["add", "."]);
+  f.git(["commit", "-m", "add assets, changelog, and excluded files"]);
+
+  f.run(f.output);
+
+  expect(await readFile(join(f.output, "docs/assets/board-handoff.png"))).toEqual(minimalPng);
+  expect(await readFile(join(f.output, "CHANGELOG.md"), "utf8")).toContain("v0.10.1");
+  await expect(stat(join(f.output, "docs/public-release/CHANGELOG.md"))).rejects.toThrow();
+  await expect(stat(join(f.output, "docs/social/2026-11-23/draft.txt"))).rejects.toThrow();
+  await expect(stat(join(f.output, ".github/workflows/ci.yml"))).rejects.toThrow();
+
+  const exportedPkg = JSON.parse(await readFile(join(f.output, "package.json"), "utf8"));
+  expect(exportedPkg.private).toBe(true);
+  expect(exportedPkg.license).toBe("MIT");
+  expect(exportedPkg.homepage).toBe("https://garovartabedian.com/work/merge-monitor");
+  expect(exportedPkg.repository?.url).toBe("https://github.com/Vartabg/merge-monitor-public.git");
+  expect(exportedPkg.bugs?.url).toBe("https://github.com/Vartabg/merge-monitor-public/issues");
+  expect(exportedPkg.keywords).toContain("mcp");
+});
+
+it("refuses export when a PNG asset embeds an unredacted personal path chunk", async () => {
+  const f = await candidate();
+  const poisonedPng = Buffer.concat([
+    Buffer.from("89504e470d0a1a0a", "hex"),
+    Buffer.from(`tEXtSource\0${SAMPLE_HOME}/private-screenshot.png`),
+  ]);
+  await f.put("docs/assets/leaked.png", poisonedPng);
+  f.git(["add", "docs/assets/leaked.png"]);
+  f.git(["commit", "-m", "add leaked png fixture"]);
+  expect(() => f.run(f.output)).toThrow(/personal path or username/);
+  await expect(stat(f.output)).rejects.toThrow();
 });

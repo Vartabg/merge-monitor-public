@@ -44,9 +44,13 @@ export async function createExecutionStore(path, {
     if (!phases.includes(run.phase)) fail(`Cannot act on ${run.phase} execution.`, 409);
   }
   function update(run, fields, time) {
-    Object.assign(run, fields, { updatedAt: new Date(time).toISOString() });
+    const createdMs = Date.parse(run.createdAt);
+    const updatedMs = Math.max(time, createdMs, Date.parse(run.updatedAt));
+    Object.assign(run, fields, { updatedAt: new Date(updatedMs).toISOString() });
     return run;
   }
+  const activeLeaseUntil = (run, time) =>
+    new Date(Math.max(time + leaseMs, Date.parse(run.createdAt) + 1)).toISOString();
   function publication(run, field, revision) {
     if (revision === undefined) return {};
     if (!Number.isSafeInteger(revision) || revision < run.assignmentRevision)
@@ -95,14 +99,14 @@ export async function createExecutionStore(path, {
         }
         return update(run, { phase: "running", adapter: clean.adapter,
           ...publication(run, "startAssignmentRevision", assignmentRevision),
-          leaseUntil: new Date(time + leaseMs).toISOString() }, time);
+          leaseUntil: activeLeaseUntil(run, time) }, time);
       });
     },
     async renew(input) {
       const clean = validateInput("renew", input);
       return transaction((next, time) => {
         const run = owned(next, clean); live(run, ["running"]);
-        return update(run, { leaseUntil: new Date(time + leaseMs).toISOString() }, time);
+        return update(run, { leaseUntil: activeLeaseUntil(run, time) }, time);
       });
     },
     async finish(input, assignmentRevision) {
@@ -145,7 +149,7 @@ export async function createExecutionStore(path, {
         // the reservation fenced until an explicit externally confirmed cancel.
         return update(run, { phase: "expired", summary: clean.summary,
           ...publication(run, "cleanupAssignmentRevision", assignmentRevision),
-          leaseUntil: new Date(time).toISOString() }, time);
+          leaseUntil: new Date(Math.max(time, Date.parse(run.createdAt))).toISOString() }, time);
       });
     },
   };

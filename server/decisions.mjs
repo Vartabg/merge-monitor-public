@@ -48,6 +48,10 @@ export function classify(worktrees, excludedBranches = []) {
       reason = "These saved changes are already in the local main version.";
       nextAction =
         "Ask the agent to confirm completion and whether the change was deployed.";
+    } else if (wt.branch === "detached") {
+      category = "attention";
+      reason = "This working copy is on a detached HEAD, not a named branch.";
+      nextAction = "Check out a named branch before combining this work.";
     } else if (
       wt.preview?.outcome === "conflict" ||
       wt.state === "CONFLICT-WITH-BASE"

@@ -8,10 +8,23 @@ export function decisionSourceSettings(env = process.env) {
     : { stateDir: env.MERGE_MONITOR_COMMON_GROUND_STATE_DIR };
 }
 
-export async function loadConfig(root) {
-  const config = JSON.parse(
-    await readFile(resolve(root, "monitor.config.json"), "utf8"),
-  );
+export async function loadConfig(
+  root,
+  configPath = resolve(root, "monitor.config.json"),
+) {
+  let raw;
+  try {
+    raw = await readFile(configPath, "utf8");
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      throw new Error(
+        `Missing monitor.config.json at ${configPath}. Run "npm run demo" to explore Merge Monitor with disposable sample data, or copy monitor.config.example.json to monitor.config.json and point it at a local Git repository.`,
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+  const config = JSON.parse(raw);
   if (!Array.isArray(config.repos) || !config.repos.length)
     throw new Error(
       "Configure at least one repository in monitor.config.json.",

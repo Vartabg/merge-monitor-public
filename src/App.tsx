@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { getJson } from "./api";
+import { AppHeader } from "./AppHeader";
+import { loadSavedProject, saveProject } from "./projectStorage";
 import { RepoDashboard } from "./RepoDashboard";
 import type { Repos } from "./types";
 import { WorkGuide } from "./WorkGuide";
 
-const PROJECT_KEY = "merge-monitor.project";
 export default function App() {
   const [config, setConfig] = useState<Repos | null>(null);
   const [active, setActive] = useState("");
@@ -15,12 +16,7 @@ export default function App() {
     getJson<Repos>("/api/repos", { signal: controller.signal })
       .then((value) => {
         if (controller.signal.aborted) return;
-        let remembered = "";
-        try {
-          remembered = localStorage.getItem(PROJECT_KEY) || "";
-        } catch {
-          /* A blocked preference store still allows project selection. */
-        }
+        const remembered = loadSavedProject();
         setConfig(value);
         setActive(
           value.repos.some((repo) => repo.id === remembered)
@@ -39,11 +35,7 @@ export default function App() {
   }, [retry]);
   function chooseProject(id: string) {
     setActive(id);
-    try {
-      localStorage.setItem(PROJECT_KEY, id);
-    } catch {
-      /* Preferences are optional; the current project remains selected. */
-    }
+    saveProject(id);
   }
   const repo = config?.repos.find((value) => value.id === active);
   return (
@@ -51,16 +43,11 @@ export default function App() {
       <a className="skip-link" href="#main">
         Skip to project report
       </a>
-      <header className="simple-header">
-        <p className="app-name">Merge Monitor</p>
-        <a href="/">Team board</a>
-        <a href="?view=team">Team assignments</a>
-        <h1>Catch clashing changes early.</h1>
-        <p className="app-purpose">
-          For projects built with multiple AI helpers. One shared report of what
-          fits together and what needs coordination.
-        </p>
-      </header>
+      <AppHeader
+        view="checks"
+        title="Catch clashing changes early."
+        purpose="For projects built with multiple AI helpers. One shared report of what fits together and what needs coordination."
+      />
       <main id="main" tabIndex={-1}>
         {config && (
           <div className="project-selector">
@@ -82,6 +69,7 @@ export default function App() {
           <div className="error-box" role="alert">
             <p>{error}</p>
             <button
+              type="button"
               className="button"
               onClick={() => setRetry((value) => value + 1)}
             >
@@ -90,6 +78,10 @@ export default function App() {
           </div>
         ) : repo ? (
           <RepoDashboard key={repo.id} repo={repo} />
+        ) : config ? (
+          <p className="empty" role="status">
+            No projects are configured yet.
+          </p>
         ) : (
           <p className="empty" role="status">
             Connecting to your projects…

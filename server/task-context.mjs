@@ -66,11 +66,12 @@ export async function saveTaskContext(monitor, value) {
             item.path !== context.path ||
             item.branch !== context.branch,
         ),
-      ],
+      ].slice(0, 500),
     }));
-  } catch {
+  } catch (error) {
     throw new Error(
       "Task context could not be saved on this Mac. Check the service's state folder and try again.",
+      { cause: error },
     );
   }
   return context;
