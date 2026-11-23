@@ -13,12 +13,13 @@ import { releaseIdentity } from "./release.mjs";
 export async function createService(
   root,
   {
+    configPath,
     statePath = process.env.MERGE_MONITOR_STATE ||
       resolve(homedir(), ".local/share/merge-monitor/state.json"),
     startWorker = true,
   } = {},
 ) {
-  const config = await loadConfig(root);
+  const config = await loadConfig(root, configPath);
   const release = await releaseIdentity(root);
   const store = await createStateStore(statePath);
   const assignments = await createAssignmentStore(

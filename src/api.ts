@@ -3,7 +3,13 @@ export async function getJson<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const response = await fetch(url, { ...options, cache: "no-store" });
-  const json: unknown = await response.json();
+  const raw = await response.text();
+  let json: unknown = null;
+  try {
+    json = raw ? JSON.parse(raw) : null;
+  } catch {
+    json = null;
+  }
   if (!response.ok) {
     const error =
       json &&
@@ -13,6 +19,9 @@ export async function getJson<T>(
         ? json.error
         : "The service could not complete this request. Try again.";
     throw new Error(error);
+  }
+  if (json === null) {
+    throw new Error("The service returned an unreadable response. Try again.");
   }
   return json as T;
 }

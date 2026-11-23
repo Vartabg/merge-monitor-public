@@ -182,7 +182,7 @@ it("validates boundedReview against assignment schema limits and formats safety-
   expect(prompt).toContain("Do not call team_claim on an assignment in review.");
   expect(prompt).toContain("Worker summary (unverified report):");
   expect(prompt).toContain("Artifacts (unverified paths/URLs):");
-  expect(prompt).toContain("team-queue at revision 3");
+  expect(prompt).toContain("node scripts/team-queue.mjs update` at revision 3");
   expect(prompt).toContain("Do not merge, push to the default branch, or deploy");
 });
 

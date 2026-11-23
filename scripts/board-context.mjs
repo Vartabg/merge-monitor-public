@@ -169,9 +169,14 @@ export function mutationReceipt(report, command, input) {
         : [],
     },
     pendingRequestCount: report.pendingIds.length,
+    ...(command === "prune-members"
+      ? { remainingMembers: report.room.members.length }
+      : {}),
     next:
       command === "check-in"
         ? "Checked in. Your compact brief is in brief. Use team_get_message for exact details or team_read_board for the complete history."
-        : "Saved. Use team_get_context for a compact brief, team_get_message for exact details, or team_read_board for the complete history.",
+        : command === "prune-members"
+          ? "Pruned eligible check-ins. Messages were preserved; use team_get_context for a compact brief."
+          : "Saved. Use team_get_context for a compact brief, team_get_message for exact details, or team_read_board for the complete history.",
   };
 }

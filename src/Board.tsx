@@ -1,43 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { getJson, postJson } from "./api";
-import type { components } from "./api.generated";
-import type { Repos } from "./types";
+import { AppHeader } from "./AppHeader";
+import { BoardComposer } from "./BoardComposer";
+import { BoardGoal } from "./BoardGoal";
+import type { GoalDraft } from "./BoardGoal";
+import { BoardMembers } from "./BoardMembers";
+import { BoardMessageCard } from "./BoardMessageCard";
+import { formatDate, isFyi, requestKinds } from "./boardHelpers";
+import type { Message, Report } from "./boardHelpers";
 import { CapacityNotice } from "./CapacityNotice";
+import { loadSavedProject, saveProject } from "./projectStorage";
+import type { Repos } from "./types";
 import "./styles/board.css";
-type Report = components["schemas"]["Board"];
-type Message = components["schemas"]["BoardMessage"];
-const labels = {
-  update: "Update",
-  decision: "Decision",
-  question: "Question",
-  blocker: "Needs help",
-  handoff: "Ready for the next agent",
-};
-const person = (agent: string) => (agent === "human" ? "You" : agent);
-const requestKinds = ["question", "blocker", "handoff"];
-const findingRows: [keyof NonNullable<Message["finding"]>, string][] = [
-  ["claim", "Claim"],
-  ["evidence", "Evidence"],
-  ["expected", "Expected"],
-  ["actual", "Actual"],
-  ["scope", "Scope"],
-  ["doneCheck", "Done check"],
-];
-// Matches the server default for messages saved before attention existed.
-const isFyi = (m: Message) =>
-  (m.attention ||
-    (["question", "blocker", "handoff"].includes(m.kind)
-      ? "action"
-      : "fyi")) === "fyi";
 
-const date = (at: string) =>
-  new Date(at).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 export function Board() {
   const [config, setConfig] = useState<Repos>();
   const [project, setProject] = useState("");
@@ -48,12 +24,7 @@ export function Board() {
     getJson<Repos>("/api/repos", { signal: controller.signal })
       .then((value) => {
         if (controller.signal.aborted) return;
-        let saved = "";
-        try {
-          saved = localStorage.getItem("merge-monitor.board-project") || "";
-        } catch {
-          /* Optional preference. */
-        }
+        const saved = loadSavedProject();
         setConfig(value);
         setProject(
           value.repos.some((r) => r.id === saved)
@@ -77,24 +48,21 @@ export function Board() {
       <a className="skip-link" href="#main">
         Skip to team board
       </a>
-      <header className="simple-header">
-        <nav className="board-nav" aria-label="Main navigation">
-          <span className="app-name">Merge Monitor</span>
-          <a href="?view=checks">Project checks</a>
-          <a href="?view=team">Assignments</a>
-        </nav>
-        <p className="board-kicker">Shared context. Clear next steps.</p>
-        <h1>Keep your agents in sync.</h1>
-        <p className="app-purpose">
-          One place for the plan, questions, and handoffs. Your helpers share
-          updates here so you can focus on decisions.
-        </p>
-      </header>
+      <AppHeader
+        view="board"
+        kicker="Shared context. Clear next steps."
+        title="Keep your agents in sync."
+        purpose="One place for the plan, questions, and handoffs. Your helpers share updates here so you can focus on decisions."
+      />
       <main id="main" tabIndex={-1}>
         {error && (
           <div className="error-box" role="alert">
             <p>{error}</p>
-            <button className="button" onClick={() => setRetry((r) => r + 1)}>
+            <button
+              type="button"
+              className="button"
+              onClick={() => setRetry((r) => r + 1)}
+            >
               Try again
             </button>
           </div>
@@ -108,14 +76,7 @@ export function Board() {
                 value={project}
                 onChange={(e) => {
                   setProject(e.target.value);
-                  try {
-                    localStorage.setItem(
-                      "merge-monitor.board-project",
-                      e.target.value,
-                    );
-                  } catch {
-                    /* Optional preference. */
-                  }
+                  saveProject(e.target.value);
                 }}
               >
                 {config.repos.map((r) => (
@@ -125,7 +86,13 @@ export function Board() {
                 ))}
               </select>
             </div>
-            <ProjectBoard key={project} project={project} />
+            {project ? (
+              <ProjectBoard key={project} project={project} />
+            ) : (
+              <p className="empty" role="status">
+                No projects are configured yet.
+              </p>
+            )}
           </>
         ) : (
           !error && <p role="status">Connecting to your board…</p>
@@ -134,6 +101,7 @@ export function Board() {
     </div>
   );
 }
+
 function ProjectBoard({ project }: { project: string }) {
   const [data, setData] = useState<Report>();
   const [error, setError] = useState("");
@@ -142,14 +110,13 @@ function ProjectBoard({ project }: { project: string }) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [composing, setComposing] = useState(false);
-  const [goalEdit, setGoalEdit] = useState<{
-    text: string;
-    revision: number;
-  }>();
+  const [goalEdit, setGoalEdit] = useState<GoalDraft>();
   const [kind, setKind] = useState<Message["kind"]>("update");
   const [to, setTo] = useState("");
+  const [attention, setAttention] = useState<"action" | "fyi">("action");
   const [text, setText] = useState("");
   const [replyTo, setReplyTo] = useState("");
+  const [prunedSender, setPrunedSender] = useState("");
   const [filter, setFilter] = useState("open");
   const [limit, setLimit] = useState(10);
   const [fyiNote, setFyiNote] = useState("Read. No action needed.");
@@ -159,14 +126,23 @@ function ProjectBoard({ project }: { project: string }) {
   const requestId = useRef(crypto.randomUUID());
   const postButton = useRef<HTMLButtonElement>(null);
   const goalButton = useRef<HTMLButtonElement>(null);
+  const replyTrigger = useRef<HTMLButtonElement | null>(null);
+
   function closeComposer() {
     setComposing(false);
-    requestAnimationFrame(() => postButton.current?.focus());
+    setPrunedSender("");
+    const target = replyTrigger.current?.isConnected
+      ? replyTrigger.current
+      : postButton.current;
+    replyTrigger.current = null;
+    requestAnimationFrame(() => target?.focus());
   }
+
   function closeGoal() {
     setGoalEdit(undefined);
     requestAnimationFrame(() => goalButton.current?.focus());
   }
+
   useEffect(() => {
     alive.current = true;
     const controller = new AbortController();
@@ -203,19 +179,23 @@ function ProjectBoard({ project }: { project: string }) {
       clearInterval(timer);
     };
   }, [project, retry]);
+
   async function act(command: string, fields: object) {
     setBusy(true);
     setSaveError("");
     setNotice("");
     epoch.current += 1;
+    const beforeMembers = data?.room.members.length ?? 0;
     try {
-      await postJson<Report>("/api/board/check-in", {
-        project,
-        agent: "human",
-        task: "Project direction and decisions",
-        scope: "Shared goal and questions for the project owner",
-        state: "idle",
-      });
+      if (command !== "prune-members") {
+        await postJson<Report>("/api/board/check-in", {
+          project,
+          agent: "human",
+          task: "Project direction and decisions",
+          scope: "Shared goal and questions for the project owner",
+          state: "idle",
+        });
+      }
       const report = await postJson<Report>(`/api/board/${command}`, {
         project,
         agent: "human",
@@ -225,7 +205,16 @@ function ProjectBoard({ project }: { project: string }) {
       epoch.current += 1;
       setData(report);
       setError("");
-      setNotice("Saved to the shared board.");
+      if (command === "prune-members") {
+        const removed = Math.max(0, beforeMembers - report.room.members.length);
+        setNotice(
+          removed > 0
+            ? `Cleared ${removed} check-in${removed === 1 ? "" : "s"}.`
+            : "No check-ins were eligible to clear (open requests or active assignments remain).",
+        );
+      } else {
+        setNotice("Saved to the shared board.");
+      }
       return true;
     } catch (e) {
       if (alive.current)
@@ -239,6 +228,7 @@ function ProjectBoard({ project }: { project: string }) {
       if (alive.current) setBusy(false);
     }
   }
+
   async function send(event: FormEvent) {
     event.preventDefault();
     if (
@@ -248,6 +238,7 @@ function ProjectBoard({ project }: { project: string }) {
         text,
         replyTo,
         requestId: requestId.current,
+        ...(kind === "handoff" ? { attention } : {}),
       })
     ) {
       closeComposer();
@@ -258,23 +249,30 @@ function ProjectBoard({ project }: { project: string }) {
       requestId.current = crypto.randomUUID();
     }
   }
-  function compose(message?: Message) {
+
+  function compose(message?: Message, trigger?: HTMLButtonElement) {
+    replyTrigger.current = trigger || null;
     setComposing(true);
     setSaveError("");
     setKind("update");
-    setTo(message?.agent || "");
+    setAttention("action");
+    const sender = message?.agent || "";
+    const senderAvailable =
+      !sender ||
+      sender === "human" ||
+      Boolean(data?.room.members.some((m) => m.agent === sender));
+    setTo(senderAvailable ? sender : "");
+    setPrunedSender(senderAvailable ? "" : sender);
     setReplyTo(message?.id || "");
     setText("");
     requestId.current = crypto.randomUUID();
-    requestAnimationFrame(() =>
-      document.getElementById("board-message")?.focus(),
-    );
   }
+
   if (!data && !error) return <p role="status">Loading shared context…</p>;
   const room = data?.room;
   const messages = room?.messages || [];
   const requests = messages.filter(
-    (m) => ["question", "blocker", "handoff"].includes(m.kind) && !m.resolvedAt,
+    (m) => (requestKinds.includes(m.kind) || !isFyi(m)) && !m.resolvedAt,
   );
   const forYou = messages.filter((m) => m.to === "human" && !m.resolvedAt);
   const needsYou = forYou.filter((m) => !isFyi(m));
@@ -294,203 +292,89 @@ function ProjectBoard({ project }: { project: string }) {
         (filter === "decisions" ? m.kind === "decision" : requests.includes(m)),
     );
   const disabled = busy || !!error;
-  function messageCard(m: Message) {
-    const original =
-      m.replyTo && messages.find((item) => item.id === m.replyTo);
-    const repliedByYou = messages.some(
-      (item) => item.replyTo === m.id && item.agent === "human",
-    );
-    const canResolve =
-      m.agent === "human" ||
-      (m.to === "human" && (!requestKinds.includes(m.kind) || repliedByYou));
-    const finding = m.finding;
-    return (
-      <li key={m.id} className="board-message">
-        <div className="board-message-meta">
-          <strong>
-            {labels[m.kind]}
-            {m.to && isFyi(m) ? " · FYI" : ""}
-          </strong>
-          <time dateTime={m.at}>{date(m.at)}</time>
-        </div>
-        <p className="board-byline">
-          {person(m.agent)} → {m.to ? person(m.to) : "Everyone on this project"}
-        </p>
-        {original && (
-          <p className="board-reply-context">
-            Reply to {person(original.agent)}: {original.text.slice(0, 160)}
-            {original.text.length > 160 ? "…" : ""}
-          </p>
-        )}
-        <p className="board-body">
-          {m.text.length > 360 ? `${m.text.slice(0, 320).trimEnd()}…` : m.text}
-        </p>
-        {m.text.length > 360 && (
-          <details className="board-message-details">
-            <summary>
-              Read full message<span className="sr-only"> {m.sequence}</span>
-            </summary>
-            <p className="board-body">{m.text}</p>
-          </details>
-        )}
-        {finding && (
-          <dl className="board-finding">
-            <div>
-              <dt>Severity</dt>
-              <dd>
-                <span
-                  className={`board-severity board-severity-${finding.severity}`}
-                >
-                  {finding.severity === "blocking" ? "Blocking" : "Non-blocking"}
-                </span>
-              </dd>
-            </div>
-            {findingRows
-              .filter(([key]) => finding[key])
-              .map(([key, label]) => (
-                <div key={key}>
-                  <dt>{label}</dt>
-                  <dd>{finding[key]}</dd>
-                </div>
-              ))}
-          </dl>
-        )}
-        <p className="board-status">
-          {m.resolvedAt
-            ? `Resolved by ${person(m.resolvedBy)} · ${date(m.resolvedAt)}${m.resolutionNote ? ` · ${m.resolutionNote}` : ""}`
-            : m.acknowledgedAt
-              ? `Acknowledged ${date(m.acknowledgedAt)} · still open`
-              : m.to
-                ? "Awaiting acknowledgment"
-                : "Shared with the project"}
-        </p>
-        {!m.resolvedAt && (
-          <div className="board-actions">
-            <button
-              className="button secondary"
-              disabled={disabled || composing}
-              onClick={() => compose(m)}
-            >
-              Reply
-              <span className="sr-only">
-                {" "}
-                to {person(m.agent)} message {m.sequence}
-              </span>
-            </button>
-            {m.to === "human" && !m.acknowledgedAt && (
-              <button
-                className="button secondary"
-                disabled={disabled}
-                onClick={() => void act("ack", { messageId: m.id })}
-              >
-                Acknowledge
-                <span className="sr-only"> message {m.sequence}</span>
-              </button>
-            )}
-            {canResolve ? (
-              <button
-                className="button secondary"
-                disabled={disabled}
-                onClick={() => void act("resolve", { messageId: m.id })}
-              >
-                Mark resolved
-                <span className="sr-only"> message {m.sequence}</span>
-              </button>
-            ) : (
-              m.to === "human" && (
-                <p className="board-status board-resolve-hint">
-                  Reply with the outcome to resolve.
-                </p>
-              )
-            )}
-          </div>
-        )}
-      </li>
-    );
-  }
+
+  const renderCard = (m: Message) => (
+    <BoardMessageCard
+      key={m.id}
+      message={m}
+      messages={messages}
+      disabled={disabled}
+      composing={composing}
+      onReply={(target, button) => compose(target, button)}
+      onAck={(messageId) => void act("ack", { messageId })}
+      onResolve={(messageId) => void act("resolve", { messageId })}
+    />
+  );
+
   return (
     <>
       {error && (
         <div className="error-box" role="alert">
           <p>{error}</p>
-          <button className="button" onClick={() => setRetry((r) => r + 1)}>
+          <button
+            type="button"
+            className="button"
+            onClick={() => setRetry((r) => r + 1)}
+          >
             Reconnect
           </button>
         </div>
       )}
+      {saveError && (
+        <p role="alert" className="error-box">
+          {saveError}
+        </p>
+      )}
+      <p role="status" className="board-byline">
+        {notice}
+      </p>
       <p className="board-connection">
         {error
           ? "Connection interrupted"
-          : `Board connected · checked ${data ? date(data.asOf) : ""}`}
+          : `Board connected · checked ${data ? formatDate(data.asOf) : ""}`}
       </p>
       {room && (
         <>
-          <CapacityNotice label="Board messages" used={room.messages.length} limit={1000} />
-          <CapacityNotice label="Project check-ins" used={room.members.length} limit={100} />
-          <section className="board-goal" aria-labelledby="goal-heading">
-            <div className="board-section-head">
-              <h2 id="goal-heading">Our shared goal</h2>
-              <button
-                className="button secondary"
-                ref={goalButton}
-                disabled={disabled || !!goalEdit}
-                onClick={() =>
-                  setGoalEdit({ text: room.goal, revision: room.revision })
-                }
-              >
-                {room.goal ? "Edit goal" : "Set a goal"}
-              </button>
-            </div>
-            {goalEdit ? (
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (
-                    await act("goal", {
-                      goal: goalEdit.text,
-                      revision: goalEdit.revision,
-                    })
-                  )
-                    closeGoal();
-                }}
-              >
-                <label htmlFor="shared-goal">
-                  What should this team accomplish?
-                </label>
-                <textarea
-                  id="shared-goal"
-                  required
-                  maxLength={1200}
-                  value={goalEdit.text}
-                  onChange={(e) =>
-                    setGoalEdit({ ...goalEdit, text: e.target.value })
-                  }
-                />
-                <div className="board-actions">
-                  <button className="button" disabled={disabled}>
-                    Save goal
-                  </button>
-                  <button
-                    type="button"
-                    className="button secondary"
-                    onClick={closeGoal}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <p className="board-goal-text">
-                {room.goal ||
-                  "Give your helpers one clear outcome to work toward."}
-              </p>
-            )}
-            {room.goal && (
-              <p className="board-byline">
-                Updated by {person(room.goalBy)} · {date(room.goalAt)}
-              </p>
-            )}
-          </section>
+          <CapacityNotice
+            label="Board messages"
+            used={room.messages.length}
+            limit={1000}
+          />
+          <CapacityNotice
+            label="Project check-ins"
+            used={room.members.length}
+            limit={100}
+          />
+          {room.members.length >= 80 && (
+            <p className="board-byline">
+              Open <strong>Agent check-ins</strong> below to clear finished
+              check-ins without deleting messages.
+            </p>
+          )}
+          <BoardGoal
+            room={room}
+            goalEdit={goalEdit}
+            disabled={disabled}
+            goalButtonRef={goalButton}
+            onStartEdit={() =>
+              setGoalEdit({ text: room.goal, revision: room.revision })
+            }
+            onChangeDraft={(nextText) =>
+              setGoalEdit((prev) => (prev ? { ...prev, text: nextText } : prev))
+            }
+            onAdoptRevision={(revision) =>
+              setGoalEdit((prev) => (prev ? { ...prev, revision } : prev))
+            }
+            onSave={() =>
+              goalEdit
+                ? act("goal", {
+                    goal: goalEdit.text,
+                    revision: goalEdit.revision,
+                  })
+                : Promise.resolve(false)
+            }
+            onCancel={closeGoal}
+          />
           <section
             className="board-attention"
             aria-labelledby="attention-heading"
@@ -501,7 +385,7 @@ function ProjectBoard({ project }: { project: string }) {
             </h2>
             {needsYou.length ? (
               <ul className="board-messages">
-                {needsYou.slice(0, 5).map(messageCard)}
+                {needsYou.slice(0, 5).map(renderCard)}
               </ul>
             ) : (
               <p>
@@ -526,7 +410,7 @@ function ProjectBoard({ project }: { project: string }) {
                 <p className="board-byline">
                   Reports of finished work. No decision needed.
                 </p>
-                <ul className="board-messages">{fyi.map(messageCard)}</ul>
+                <ul className="board-messages">{fyi.map(renderCard)}</ul>
                 {oldHandoffs.length > 0 && (
                   <>
                     <h3>Older handoffs</h3>
@@ -535,7 +419,7 @@ function ProjectBoard({ project }: { project: string }) {
                       Check them before resolving.
                     </p>
                     <ul className="board-messages">
-                      {oldHandoffs.map(messageCard)}
+                      {oldHandoffs.map(renderCard)}
                     </ul>
                   </>
                 )}
@@ -573,6 +457,7 @@ function ProjectBoard({ project }: { project: string }) {
                     </label>
                   )}
                   <button
+                    type="submit"
                     className="button"
                     disabled={disabled || !bulk.length}
                   >
@@ -587,6 +472,7 @@ function ProjectBoard({ project }: { project: string }) {
             <div className="board-section-head">
               <h2 id="conversation-heading">Team conversation</h2>
               <button
+                type="button"
                 className="button"
                 ref={postButton}
                 disabled={disabled || composing}
@@ -596,83 +482,36 @@ function ProjectBoard({ project }: { project: string }) {
               </button>
             </div>
             {composing && (
-              <form className="board-compose" onSubmit={send}>
-                <label htmlFor="board-message">
-                  {replyTo ? "Your reply" : "What does the team need to know?"}
-                </label>
-                <textarea
-                  id="board-message"
-                  value={text}
-                  required
-                  maxLength={4000}
-                  onChange={(e) => {
-                    setText(e.target.value);
-                    requestId.current = crypto.randomUUID();
-                  }}
-                />
-                <div className="board-form-row">
-                  <label>
-                    Message type
-                    <select
-                      value={kind}
-                      onChange={(e) => {
-                        setKind(e.target.value as Message["kind"]);
-                        requestId.current = crypto.randomUUID();
-                      }}
-                    >
-                      {Object.entries(labels).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Send to
-                    <select
-                      value={to}
-                      required={["question", "blocker", "handoff"].includes(
-                        kind,
-                      )}
-                      onChange={(e) => {
-                        setTo(e.target.value);
-                        requestId.current = crypto.randomUUID();
-                      }}
-                    >
-                      <option value="">Everyone on this project</option>
-                      {!room.members.some((m) => m.agent === "human") && (
-                        <option value="human">You</option>
-                      )}
-                      {room.members.map((m) => (
-                        <option key={m.agent} value={m.agent}>
-                          {person(m.agent)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <div className="board-actions">
-                  <button className="button" disabled={disabled}>
-                    Send to board
-                  </button>
-                  <button
-                    type="button"
-                    className="button secondary"
-                    onClick={closeComposer}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
+              <BoardComposer
+                members={room.members}
+                kind={kind}
+                to={to}
+                attention={attention}
+                text={text}
+                replyTo={replyTo}
+                prunedSender={prunedSender}
+                disabled={disabled}
+                onChangeKind={(nextKind) => {
+                  setKind(nextKind);
+                  if (nextKind === "handoff") setAttention("action");
+                  requestId.current = crypto.randomUUID();
+                }}
+                onChangeTo={(nextTo) => {
+                  setTo(nextTo);
+                  requestId.current = crypto.randomUUID();
+                }}
+                onChangeAttention={(nextAttention) => {
+                  setAttention(nextAttention);
+                  requestId.current = crypto.randomUUID();
+                }}
+                onChangeText={(nextText) => {
+                  setText(nextText);
+                  requestId.current = crypto.randomUUID();
+                }}
+                onSubmit={send}
+                onCancel={closeComposer}
+              />
             )}
-            {saveError && (
-              <p role="alert" className="error-box">
-                {saveError}
-              </p>
-            )}
-            <p role="status" className="board-byline">
-              {notice}
-            </p>
             <div
               className="board-filters"
               role="group"
@@ -684,6 +523,7 @@ function ProjectBoard({ project }: { project: string }) {
                 ["decisions", "Decisions"],
               ].map(([value, label]) => (
                 <button
+                  type="button"
                   key={value}
                   className="button secondary"
                   aria-pressed={filter === value}
@@ -712,11 +552,12 @@ function ProjectBoard({ project }: { project: string }) {
               </p>
             ) : (
               <ul className="board-messages">
-                {visible.slice(0, limit).map(messageCard)}
+                {visible.slice(0, limit).map(renderCard)}
               </ul>
             )}
             {visible.length > limit && (
               <button
+                type="button"
                 className="button secondary"
                 onClick={() => setLimit((n) => n + 20)}
               >
@@ -724,35 +565,18 @@ function ProjectBoard({ project }: { project: string }) {
               </button>
             )}
           </section>
-          <details className="board-details">
-            <summary>
-              Agent check-ins · {helpers.length} helpers
-              {stale.size ? ` · ${stale.size} stale` : ""}
-            </summary>
-            <p className="board-byline">
-              Check-ins are updates from agents, not proof that they are still
-              running. Names are supplied by local clients. Stale means no
-              check-in for {data?.staleAfterHours ?? 72} hours.
-            </p>
-            <ul className="board-members">
-              {helpers.map((m) => (
-                <li key={m.agent}>
-                  <h3>{m.agent}</h3>
-                  <p>{m.task}</p>
-                  <p className="board-byline">
-                    {m.state} · checked in {date(m.checkedInAt)}
-                    {stale.has(m.agent) ? " · stale, may have stopped" : ""}
-                  </p>
-                  {m.scope && <p>Scope: {m.scope}</p>}
-                  <p className="board-byline">
-                    {m.lastReadAt
-                      ? `Last read ${date(m.lastReadAt)} · through message ${m.lastReadSequence}`
-                      : "No recorded board read yet"}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </details>
+          <BoardMembers
+            helpers={helpers}
+            stale={stale}
+            staleAfterHours={data?.staleAfterHours ?? 72}
+            disabled={disabled}
+            onPrune={(includeStale) =>
+              act(
+                "prune-members",
+                includeStale ? { includeStale: true } : {},
+              )
+            }
+          />
           <details className="board-details">
             <summary>Connect a helper</summary>
             <p>Give a local coding agent this instruction:</p>
@@ -765,7 +589,8 @@ function ProjectBoard({ project }: { project: string }) {
             <p>
               Connected agents use the <code>merge-monitor</code> tools.
               Terminal setup and commands are in <code>docs/TEAM_BOARD.md</code>
-              . Each agent must participate; updates do not wake a closed chat.
+              . Each agent reads the board at workflow boundaries; for opt-in
+              assignment wakes on macOS, see <code>docs/TEAM_DISPATCH.md</code>.
             </p>
           </details>
         </>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getJson } from "./api";
+import { AppHeader } from "./AppHeader";
 import { AssignmentForm } from "./AssignmentForm";
 import { AssignmentDetail } from "./AssignmentDetail";
 import { CapacityNotice } from "./CapacityNotice";
@@ -12,7 +13,8 @@ import "./styles/assignments.css";
 export function TeamDesk() {
   const [items, setItems] = useState<Assignment[] | null>(null);
   const [capacity, setCapacity] = useState<Assignments["capacity"]>();
-  const { selected, select, refresh, onEdit, busy, setBusy } = useAssignmentSelection();
+  const { selected, select, refresh, onEdit, onFocusChange, busy, setBusy } =
+    useAssignmentSelection();
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -86,16 +88,11 @@ export function TeamDesk() {
       <a className="skip-link" href="#main">
         Skip to assignments
       </a>
-      <header className="simple-header">
-        <a href="/" className="team-back">
-          Merge Monitor · Team board
-        </a>
-        <h1>Your team’s work.</h1>
-        <p className="app-purpose">
-          See who owns each assignment, what they produced, and what needs
-          review.
-        </p>
-      </header>
+      <AppHeader
+        view="team"
+        title="Your team’s work."
+        purpose="See who owns each assignment, what they produced, and what needs review."
+      />
       <main id="main" tabIndex={-1}>
         {capacity && <>
           <CapacityNotice label="Assignments" {...capacity.assignments} />
@@ -133,6 +130,7 @@ export function TeamDesk() {
             disabled={error}
             stale={!!latest}
             onEdit={onEdit}
+            onFocusChange={onFocusChange}
             onBusy={setBusy}
             onSave={save}
             onClose={close}

@@ -17,6 +17,7 @@ export function AssignmentProgress({
   disabled,
   stale = false,
   onEdit,
+  onFocusChange,
 }: {
   item: Assignment;
   onSave: (value: Assignment) => void;
@@ -24,6 +25,7 @@ export function AssignmentProgress({
   disabled: boolean;
   stale?: boolean;
   onEdit?: () => void;
+  onFocusChange?: (focused: boolean) => void;
 }) {
   const [status, setStatus] = useState(item.status);
   const [error, setError] = useState("");
@@ -62,7 +64,18 @@ export function AssignmentProgress({
     }
   }
   return (
-    <form onSubmit={submit} onChangeCapture={onEdit} onFocusCapture={onEdit}>
+    <form
+      onSubmit={submit}
+      onChangeCapture={onEdit}
+      onFocusCapture={() => onFocusChange?.(true)}
+      onBlurCapture={(event) => {
+        if (
+          !event.currentTarget.contains(event.relatedTarget as Node | null)
+        ) {
+          onFocusChange?.(false);
+        }
+      }}
+    >
       <h3>Update progress</h3>
       <p className="team-note">
         Record what happened. This form does not run a helper or perform the

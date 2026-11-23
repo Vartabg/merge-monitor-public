@@ -55,6 +55,12 @@ const definitions = [
     "BoardGoal",
     "Record the agreed project goal, only within the user-authorized scope. Use the current goal revision from the board; conflicts require a fresh read.",
   ],
+  [
+    "team_prune_members",
+    "prune-members",
+    "BoardPruneMembers",
+    "Clear finished check-ins (and optionally stale check-ins with includeStale: true) from this project room to free check-in capacity. Preserves human, caller, open-message recipients, active assignment participants, and all messages.",
+  ],
 ];
 export function createBoardMcp(
   origin = process.env.MERGE_MONITOR_ORIGIN || "http://127.0.0.1:5173",

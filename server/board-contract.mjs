@@ -60,6 +60,7 @@ export const boardSchemas = {
     { includeOldHandoffs: { type: "boolean" } },
   ),
   BoardGoal: object({ ...who, goal: text(1200, 1), revision: sequence }),
+  BoardPruneMembers: object(who, { includeStale: { type: "boolean" } }),
   BoardMember: object({
     agent: id,
     task: text(300, 1),
@@ -122,8 +123,10 @@ const operation = (input) => ({
     400: response("Error"),
     403: response("Error"),
     404: response("Error"),
+    405: response("Error"),
     409: response("Error"),
     413: response("Error"),
+    415: response("Error"),
     500: response("Error"),
   },
 });
@@ -145,6 +148,7 @@ export const boardPaths = {
       resolve: "BoardAction",
       "resolve-fyi": "BoardResolveFyi",
       goal: "BoardGoal",
+      "prune-members": "BoardPruneMembers",
     }).map(([path, schema]) => [
       `/api/board/${path}`,
       { post: operation(schema) },

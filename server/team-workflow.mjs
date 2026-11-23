@@ -118,8 +118,9 @@ export function createTeamWorkflow(dependencies) {
       const previous = executions.list(input.project).find((run) => run.runId === input.runId);
       if (
         !previous.finishRequestId &&
-        (assignment.status === "accepted" || (input.status === "review" &&
-        !["working", "review"].includes(assignment.status)))
+        (input.status === "review"
+          ? !["working", "review"].includes(assignment.status)
+          : assignment.status !== "working")
       )
         fail(
           "The assignment changed. Keep the result and request coordinator review.",

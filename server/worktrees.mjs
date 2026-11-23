@@ -57,6 +57,7 @@ export async function inspectWorktree(repo, row, base) {
     !row.primary &&
     !isDirty &&
     merged.code !== 0 &&
+    row.branch !== "detached" &&
     !(repo.excludedBranches || []).includes(row.branch)
   ) {
     preview = await previewMerge(repo, row.branch, {

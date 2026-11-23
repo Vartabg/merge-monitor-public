@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { postJson } from "./api";
 import { taskName } from "./taskPresentation";
 import type { TaskContext, Worktree } from "./types";
@@ -23,6 +23,20 @@ export function TaskContextEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const dirty = useRef(false);
+  useEffect(() => {
+    if (!dirty.current) {
+      setTitle(context?.title || "");
+      setPurpose(context?.purpose || "");
+      setOwner(context?.owner || "");
+    }
+  }, [
+    context?.title,
+    context?.purpose,
+    context?.owner,
+    worktree.path,
+    worktree.branch,
+  ]);
   async function save(event: React.FormEvent) {
     event.preventDefault();
     if (busy) return;
@@ -38,6 +52,7 @@ export function TaskContextEditor({
         purpose,
         owner,
       });
+      dirty.current = false;
       setSaved(true);
       onAction();
     } catch (failure) {
@@ -69,6 +84,7 @@ export function TaskContextEditor({
             id={`${id}-title`}
             value={title}
             onChange={(e) => {
+              dirty.current = true;
               setTitle(e.target.value);
               setSaved(false);
             }}
@@ -83,6 +99,7 @@ export function TaskContextEditor({
             id={`${id}-purpose`}
             value={purpose}
             onChange={(e) => {
+              dirty.current = true;
               setPurpose(e.target.value);
               setSaved(false);
             }}
@@ -98,6 +115,7 @@ export function TaskContextEditor({
             id={`${id}-owner`}
             value={owner}
             onChange={(e) => {
+              dirty.current = true;
               setOwner(e.target.value);
               setSaved(false);
             }}

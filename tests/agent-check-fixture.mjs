@@ -80,7 +80,7 @@ export const freshStatus = (statusOver = {}, responseOver = {}) => ({
       branch: "feature-a",
       title: "Add widget",
       purpose: "Support widgets",
-      owner: "Garo",
+      owner: "Owner",
       updatedAt: new Date().toISOString(),
     },
   ],

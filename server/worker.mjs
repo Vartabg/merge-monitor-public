@@ -6,6 +6,7 @@ export function createWorker(
   { interval = 30_000, reap = reapMergedWorktrees, executions = null } = {},
 ) {
   let timer,
+    generation = 0,
     active = false,
     closed = false,
     lastRun = null,
@@ -214,10 +215,11 @@ export function createWorker(
     }
     return view();
   }
-  async function schedule() {
+  async function schedule(myGen) {
+    if (closed || myGen !== generation) return;
     await run();
-    if (!closed) {
-      timer = setTimeout(schedule, interval);
+    if (!closed && myGen === generation) {
+      timer = setTimeout(() => void schedule(myGen), interval);
       timer.unref();
     }
   }
@@ -225,11 +227,14 @@ export function createWorker(
     view,
     run,
     start: () => {
+      clearTimeout(timer);
       closed = false;
-      void schedule();
+      const myGen = ++generation;
+      void schedule(myGen);
     },
     stop: () => {
       closed = true;
+      generation++;
       clearTimeout(timer);
     },
     setEnabled: async (enabled) => {

@@ -1,22 +1,45 @@
 import { resolve } from "node:path";
 
 const key = "MERGE_MONITOR_STALE_HOURS";
-// Returns the stale threshold to write into the LaunchAgent, or "" for the service default (72h).
-// Unset keeps the value from the previous install; an empty value clears it.
-export function staleHoursSetting(value, previousPlist = "") {
-  if (value === undefined)
-    return (
-      previousPlist.match(
-        new RegExp(`<key>${key}</key><string>([^<]*)</string>`),
-      )?.[1] || ""
+export const DEFAULT_SERVICE_LABEL = "local.merge-monitor";
+export const SERVICE_LABEL_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}$/;
+
+export function serviceLabelSetting(value) {
+  if (value === undefined || value === "") return DEFAULT_SERVICE_LABEL;
+  if (typeof value !== "string" || !SERVICE_LABEL_RE.test(value))
+    throw new Error(
+      "MERGE_MONITOR_SERVICE_LABEL must be 1..120 letters, digits, dots, underscores, or hyphens.",
     );
+  return value;
+}
+
+// Returns the stale threshold to write into the LaunchAgent, or "" for the service default (72h).
+// Unset keeps the valid value from the previous install; an empty value clears it.
+export function staleHoursSetting(value, previousPlist = "") {
+  if (value === undefined) {
+    const extracted = previousPlist.match(
+      new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`),
+    )?.[1];
+    if (
+      extracted &&
+      /^\d+(\.\d+)?$/.test(extracted) &&
+      Number.isFinite(Number(extracted)) &&
+      Number(extracted) > 0
+    )
+      return extracted;
+    return "";
+  }
   if (value === "") return "";
-  if (!/^\d+(\.\d+)?$/.test(value) || !(Number(value) > 0))
+  if (
+    !/^\d+(\.\d+)?$/.test(value) ||
+    !Number.isFinite(Number(value)) ||
+    !(Number(value) > 0)
+  )
     throw new Error(`${key} must be a positive number of hours.`);
   return value;
 }
 export const staleHoursEntry = (hours) =>
-  hours ? `<key>${key}</key><string>${hours}</string>` : "";
+  hours ? `<key>${key}</key><string>${xmlEscape(hours)}</string>` : "";
 
 export const xmlEscape = (value) =>
   String(value)
@@ -37,6 +60,8 @@ export function renderLaunchAgentPlist({
   keepAlive = true,
   throttleInterval = 10,
 }) {
+  if (!Number.isInteger(throttleInterval) || throttleInterval < 0)
+    throw new Error("throttleInterval must be a non-negative integer.");
   const argsXml = programArguments
     .map((arg) => `<string>${xmlEscape(arg)}</string>`)
     .join("");
@@ -65,6 +90,7 @@ export function renderLaunchAgentPlist({
 }
 
 export function renderServerPlist({
+  label = DEFAULT_SERVICE_LABEL,
   nodePath,
   root,
   port,
@@ -74,7 +100,7 @@ export function renderServerPlist({
   stderrPath,
 }) {
   return renderLaunchAgentPlist({
-    label: "com.garo.merge-monitor",
+    label,
     programArguments: [nodePath, resolve(root, "server/index.mjs")],
     workingDirectory: root,
     environmentVariables: {
@@ -88,6 +114,7 @@ export function renderServerPlist({
 }
 
 export function renderDispatchPlist({
+  label = `${DEFAULT_SERVICE_LABEL}.dispatch`,
   nodePath,
   root,
   configPath,
@@ -98,7 +125,7 @@ export function renderDispatchPlist({
   stderrPath,
 }) {
   return renderLaunchAgentPlist({
-    label: "com.garo.merge-monitor.dispatch",
+    label,
     programArguments: [
       nodePath,
       resolve(root, "scripts/dispatch.mjs"),

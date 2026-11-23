@@ -10,6 +10,7 @@ export function AssignmentDetail({
   disabled,
   stale = false,
   onEdit,
+  onFocusChange,
   onBusy,
 }: {
   assignment: Assignment;
@@ -18,6 +19,7 @@ export function AssignmentDetail({
   disabled: boolean;
   stale?: boolean;
   onEdit?: () => void;
+  onFocusChange?: (focused: boolean) => void;
   onBusy?: (busy: boolean) => void;
 }) {
   const [saving, setSaving] = useState(false);
@@ -84,7 +86,7 @@ export function AssignmentDetail({
           <h3>Evidence</h3>
           <ul>
             {item.artifacts.map((link, index) => (
-              <li key={link}>
+              <li key={`${index}-${link}`}>
                 {/^https?:\/\//.test(link) ? (
                   <a href={link} target="_blank" rel="noreferrer">
                     Evidence {index + 1}: {link}
@@ -110,6 +112,7 @@ export function AssignmentDetail({
           onSave={onSave}
           onBusy={(value) => { setSaving(value); onBusy?.(value); }}
           onEdit={onEdit}
+          onFocusChange={onFocusChange}
           stale={stale}
           disabled={disabled}
         />
